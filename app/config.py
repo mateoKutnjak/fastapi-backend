@@ -1,4 +1,5 @@
 # from pydantic import SecretStr
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,9 +12,11 @@ class Settings(BaseSettings):
 
     database_url: str
 
-    # secret_key: SecretStr
-    # algorithm: str = "HS256"
-    # access_token_expire_minutes: int = 30
+    secret_key: SecretStr
+    algorithm: str = "HS256"
+
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_minutes: int = 10080
 
     # max_upload_size_bytes: int = 5 * 1024 * 1024  # 5 MB
 
