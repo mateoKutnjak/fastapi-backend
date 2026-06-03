@@ -21,7 +21,7 @@ def generate_tokens(subject: uuid.UUID) -> TokenResponse:
 
 async def register_user(
     body: Annotated[UserCreate, Body()], db: Annotated[AsyncSession, Depends(get_db)]
-):
+) -> TokenResponse:
     if await get_user_by_username(db, body.username):
         raise FieldConflictException(
             field="username",
@@ -35,12 +35,12 @@ async def register_user(
         )
 
     user = await create_user(db, body)
-    return {"message": f"User {user.username} registered successfully"}
+    return generate_tokens(user.id)
 
 
 async def login_user(
     db: Annotated[AsyncSession, Depends(get_db)], email: str, password: str
-):
+) -> TokenResponse:
     user = await get_user_by_email(db, email)
 
     if not user or not verify_password(password, user.password_hash):
