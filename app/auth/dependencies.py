@@ -16,14 +16,6 @@ async def get_current_user(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     user_id = verify_token(token, TokenType.ACCESS)
-
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
     user = await get_user_by_id(db, user_id)
 
     if user is None:

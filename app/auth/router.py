@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.auth.schemas import TokenResponse
-from app.auth.services import login_user, register_user
+from app.auth import services
+from app.auth.schemas import RefreshTokenRequest, TokenResponse
 from app.core.db import AsyncSession, get_db
 from app.users.schemas import UserCreate
 
@@ -17,7 +17,7 @@ router = APIRouter()
 async def register(
     body: Annotated[UserCreate, Body()], db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    return await register_user(body, db)
+    return await services.register_user(body, db)
 
 
 @router.post("/token", response_model=TokenResponse)
@@ -26,4 +26,14 @@ async def login(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # TODO change username / email missmatch in OAuth2PasswordRequestForm
-    return await login_user(db, email=form_data.username, password=form_data.password)
+    return await services.login_user(
+        db, email=form_data.username, password=form_data.password
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    body: Annotated[RefreshTokenRequest, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await services.refresh_token(db, body.refresh_token)
