@@ -19,13 +19,15 @@ async def test_register_user_validation_error(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_register_user_duplicate_email(
-    client: AsyncClient, registered_user: dict
+    client: AsyncClient, registered_user_with_role: dict
 ):
+    user = await registered_user_with_role("user")
+
     response = await client.post(
         "/api/auth/register",
         json={
             "username": "newuser",
-            "email": registered_user["email"],
+            "email": user["email"],
             "password": "newpassword123",
         },
     )
@@ -36,12 +38,14 @@ async def test_register_user_duplicate_email(
 
 @pytest.mark.asyncio
 async def test_register_user_duplicate_username(
-    client: AsyncClient, registered_user: dict
+    client: AsyncClient, registered_user_with_role: dict
 ):
+    user = await registered_user_with_role("user")
+
     response = await client.post(
         "/api/auth/register",
         json={
-            "username": registered_user["username"],
+            "username": user["username"],
             "email": "newemail@example.com",
             "password": "newpassword123",
         },
@@ -69,12 +73,14 @@ async def test_register_user_success(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_user_invalid_credentials(
-    client: AsyncClient, registered_user: dict
+    client: AsyncClient, registered_user_with_role: dict
 ):
+    user = await registered_user_with_role("user")
+
     response = await client.post(
         "/api/auth/token",
         data={
-            "username": registered_user["email"],
+            "username": user["email"],
             "password": "wrongpassword",
         },
     )
@@ -84,12 +90,14 @@ async def test_login_user_invalid_credentials(
 
 
 @pytest.mark.asyncio
-async def test_login_user_success(client: AsyncClient, registered_user: dict):
+async def test_login_user_success(client: AsyncClient, registered_user_with_role: dict):
+    user = await registered_user_with_role("user")
+
     response = await client.post(
         "/api/auth/token",
         data={
-            "username": registered_user["email"],
-            "password": registered_user["password"],
+            "username": user["email"],
+            "password": user["password"],
         },
     )
 
@@ -99,10 +107,12 @@ async def test_login_user_success(client: AsyncClient, registered_user: dict):
 
 
 @pytest.mark.asyncio
-async def test_expired_access_token(client: AsyncClient, registered_user: dict):
-    expired_access_token = create_token(
-        registered_user["id"], TokenType.ACCESS, expires_delta=-5
-    )
+async def test_expired_access_token(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
+    expired_access_token = create_token(user["id"], TokenType.ACCESS, expires_delta=-5)
 
     response = await client.get(
         "/api/users/me",
@@ -114,11 +124,15 @@ async def test_expired_access_token(client: AsyncClient, registered_user: dict):
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_success(client: AsyncClient, registered_user: dict):
+async def test_refresh_token_success(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
     response = await client.post(
         "/api/auth/refresh",
         json={
-            "refresh_token": registered_user["refresh_token"],
+            "refresh_token": user["refresh_token"],
         },
     )
 
@@ -141,9 +155,13 @@ async def test_refresh_token_invalid_token(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_expired_token(client: AsyncClient, registered_user: dict):
+async def test_refresh_token_expired_token(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
     expired_refresh_token = create_token(
-        registered_user["id"], TokenType.REFRESH, expires_delta=-5
+        user["id"], TokenType.REFRESH, expires_delta=-5
     )
 
     response = await client.post(

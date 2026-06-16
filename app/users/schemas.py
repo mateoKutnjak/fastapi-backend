@@ -1,9 +1,11 @@
 import uuid
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     username: str | None = Field(None, max_length=50)
     email: EmailStr = Field(max_length=255)
 
@@ -13,8 +15,14 @@ class UserCreate(UserBase):
 
 
 class UserResponse(UserBase):
-    pass
+    role: RoleResponse
 
 
 class UserResponsePrivate(UserResponse):
     id: uuid.UUID
+
+
+class RoleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str

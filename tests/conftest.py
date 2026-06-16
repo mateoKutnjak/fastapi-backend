@@ -1,14 +1,17 @@
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import Settings
 from app.core.db import Base, get_db
+from app.core.seed import seed_db
 from app.main import app
+from app.users.models import Role, User
 
 # * Needed to use async fixtures in pytest
 pytest_plugins = ["anyio"]
@@ -29,9 +32,28 @@ def test_engine():
 
 
 @pytest_asyncio.fixture(scope="session")
+def test_session_factory(test_engine):
+    return async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        join_transaction_mode="rollback_only",
+    )
+
+
+@pytest_asyncio.fixture(scope="session")
 async def setup_database(test_engine):
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    TestSessionLocal = async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with TestSessionLocal() as db:
+        await seed_db(db)
 
     yield
 
@@ -50,15 +72,16 @@ async def db_session(
 ) -> AsyncGenerator[AsyncSession]:
     conn = await test_engine.connect()
     trans = await conn.begin()
+    await conn.begin_nested()
 
-    test_async_session = async_sessionmaker(
+    TestSessionLocal = async_sessionmaker(
         bind=conn,
         class_=AsyncSession,
         expire_on_commit=False,
-        join_transaction_mode="rollback_only",
+        join_transaction_mode="create_savepoint",
     )
 
-    async with test_async_session() as session:
+    async with TestSessionLocal() as session:
         try:
             yield session
         finally:
@@ -87,15 +110,33 @@ async def client(
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
-async def registered_user(client: AsyncClient) -> dict:
-    return await register_test_user(client)
+@pytest_asyncio.fixture(scope="function")
+async def registered_user_with_role(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    async def _register(role_name: str):
 
+        unique_id = uuid.uuid4().hex[:8]
 
-@pytest_asyncio.fixture
-async def authorized_client(client: AsyncClient, registered_user: dict) -> AsyncClient:
-    client.headers.update(auth_headers(registered_user["access_token"]))
-    return client
+        username = f"testuser_{unique_id}"
+        email = f"test_{unique_id}@example.com"
+        password = "testpassword123"
+
+        user_data = await register_test_user(
+            client, username=username, email=email, password=password
+        )
+
+        role = await db_session.scalar(select(Role).where(Role.name == role_name))
+
+        user = await db_session.get(User, uuid.UUID(user_data["id"]))
+        user.role_id = role.id
+
+        await db_session.flush()
+
+        return {**user_data}
+
+    return _register
 
 
 async def register_test_user(
@@ -127,29 +168,3 @@ async def register_test_user(
         "password": password,
         **response.json(),
     }
-
-
-async def login_test_user(
-    client: AsyncClient,
-    email: str = "test@example.com",
-    password: str = "testpassword123",
-) -> dict:
-    response = await client.post(
-        "/api/auth/token",
-        data={
-            "username": email,
-            "password": password,
-        },
-    )
-    assert response.status_code == 200, f"Failed to login: {response.text}"
-
-    return {
-        "username": email,
-        "email": email,
-        "password": password,
-        **response.json(),
-    }
-
-
-def auth_headers(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
