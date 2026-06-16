@@ -3,8 +3,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from app.core.db import AsyncSession
-from app.users import constants
-from app.users.models import Permission, Role
+from app.api.v1.users import constants
+from app.api.v1.users.models import Permission, Role
 
 
 async def _seed_roles(db: AsyncSession):

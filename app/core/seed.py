@@ -1,5 +1,5 @@
 from app.core.db import AsyncSession
-from app.users import seeds as users_seed
+from app.api.v1.users import seeds as users_seed
 
 
 async def seed_db(db: AsyncSession):

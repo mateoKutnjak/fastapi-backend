@@ -2,12 +2,13 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.security import TokenType, create_token
+from tests.conftest import API_VERSION
 
 
 @pytest.mark.asyncio
 async def test_register_user_validation_error(client: AsyncClient):
     response = await client.post(
-        "/api/auth/register",
+        f"{API_VERSION}/auth/register",
         json={
             "username": "testuser",
         },
@@ -24,7 +25,7 @@ async def test_register_user_duplicate_email(
     user = await registered_user_with_role("user")
 
     response = await client.post(
-        "/api/auth/register",
+        f"{API_VERSION}/auth/register",
         json={
             "username": "newuser",
             "email": user["email"],
@@ -43,7 +44,7 @@ async def test_register_user_duplicate_username(
     user = await registered_user_with_role("user")
 
     response = await client.post(
-        "/api/auth/register",
+        f"{API_VERSION}/auth/register",
         json={
             "username": user["username"],
             "email": "newemail@example.com",
@@ -58,7 +59,7 @@ async def test_register_user_duplicate_username(
 @pytest.mark.asyncio
 async def test_register_user_success(client: AsyncClient):
     response = await client.post(
-        "/api/auth/register",
+        f"{API_VERSION}/auth/register",
         json={
             "username": "testuser",
             "email": "testuser@example.com",
@@ -78,7 +79,7 @@ async def test_login_user_invalid_credentials(
     user = await registered_user_with_role("user")
 
     response = await client.post(
-        "/api/auth/token",
+        f"{API_VERSION}/auth/token",
         data={
             "username": user["email"],
             "password": "wrongpassword",
@@ -94,7 +95,7 @@ async def test_login_user_success(client: AsyncClient, registered_user_with_role
     user = await registered_user_with_role("user")
 
     response = await client.post(
-        "/api/auth/token",
+        f"{API_VERSION}/auth/token",
         data={
             "username": user["email"],
             "password": user["password"],
@@ -115,7 +116,7 @@ async def test_expired_access_token(
     expired_access_token = create_token(user["id"], TokenType.ACCESS, expires_delta=-5)
 
     response = await client.get(
-        "/api/users/me",
+        f"{API_VERSION}/users/me",
         headers={"Authorization": f"Bearer {expired_access_token}"},
     )
 
@@ -130,7 +131,7 @@ async def test_refresh_token_success(
     user = await registered_user_with_role("user")
 
     response = await client.post(
-        "/api/auth/refresh",
+        f"{API_VERSION}/auth/refresh",
         json={
             "refresh_token": user["refresh_token"],
         },
@@ -144,7 +145,7 @@ async def test_refresh_token_success(
 @pytest.mark.asyncio
 async def test_refresh_token_invalid_token(client: AsyncClient):
     response = await client.post(
-        "/api/auth/refresh",
+        f"{API_VERSION}/auth/refresh",
         json={
             "refresh_token": "invalidtoken",
         },
@@ -165,7 +166,7 @@ async def test_refresh_token_expired_token(
     )
 
     response = await client.post(
-        "/api/auth/refresh",
+        f"{API_VERSION}/auth/refresh",
         json={
             "refresh_token": expired_refresh_token,
         },

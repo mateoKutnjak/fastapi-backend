@@ -4,8 +4,8 @@ from sqlalchemy import select
 
 from app.core.db import AsyncSession
 from app.core.security import hash_password
-from app.users.models import Role, User
-from app.users.schemas import UserCreate
+from app.api.v1.users.models import Role, User
+from app.api.v1.users.schemas import UserCreate
 
 
 async def get_all_users(db: AsyncSession):

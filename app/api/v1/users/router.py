@@ -4,11 +4,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_permission
+from app.api.v1.auth.dependencies import get_current_user, require_permission
 from app.core.db import get_db
-from app.users import services
-from app.users.models import User
-from app.users.schemas import UserResponsePrivate
+from app.api.v1.users import services
+from app.api.v1.users.models import User
+from app.api.v1.users.schemas import UserResponsePrivate
 
 router = APIRouter()
 

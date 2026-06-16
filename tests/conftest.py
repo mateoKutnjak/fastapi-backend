@@ -7,11 +7,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import NullPool, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.api.v1.users.models import Role, User
 from app.config import Settings
 from app.core.db import Base, get_db
 from app.core.seed import seed_db
 from app.main import app
-from app.users.models import Role, User
+
+API_VERSION = "/api/v1"
 
 # * Needed to use async fixtures in pytest
 pytest_plugins = ["anyio"]
@@ -146,7 +148,7 @@ async def register_test_user(
     password: str = "testpassword123",
 ) -> dict:
     response = await client.post(
-        "/api/auth/register",
+        f"{API_VERSION}/auth/register",
         json={
             "username": username,
             "email": email,
@@ -156,7 +158,7 @@ async def register_test_user(
     assert response.status_code == 201, f"Failed to create user: {response.text}"
 
     user = await client.get(
-        "/api/users/me",
+        f"{API_VERSION}/users/me",
         headers={"Authorization": f"Bearer {response.json()['access_token']}"},
     )
     assert user.status_code == 200, f"Failed to get user: {user.text}"

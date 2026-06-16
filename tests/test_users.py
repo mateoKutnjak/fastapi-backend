@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import API_VERSION
+
 
 @pytest.mark.asyncio
 async def test_get_me_returns_current_user(
@@ -9,7 +11,7 @@ async def test_get_me_returns_current_user(
     user = await registered_user_with_role("user")
 
     response = await client.get(
-        "/api/users/me",
+        f"{API_VERSION}/users/me",
         headers={"Authorization": f"Bearer {user['access_token']}"},
     )
 
@@ -22,14 +24,14 @@ async def test_get_me_returns_current_user(
 
 @pytest.mark.asyncio
 async def test_get_me_unauthorized(client: AsyncClient):
-    response = await client.get("/api/users/me")
+    response = await client.get(f"{API_VERSION}/users/me")
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_get_me_invalid_token(client: AsyncClient):
     response = await client.get(
-        "/api/users/me",
+        f"{API_VERSION}/users/me",
     )
     assert response.status_code == 401
 
@@ -53,7 +55,7 @@ async def test_get_user_by_id(
     user = await registered_user_with_role(role_name)
 
     response = await client.get(
-        f"/api/users/{user['id']}",
+        f"{API_VERSION}/users/{user['id']}",
         headers={"Authorization": f"Bearer {user['access_token']}"},
     )
 
@@ -81,7 +83,7 @@ async def test_get_all_users_for_roles(
     user = await registered_user_with_role(role_name)
 
     response = await client.get(
-        "/api/users/",
+        f"{API_VERSION}/users/",
         headers={"Authorization": f"Bearer {user['access_token']}"},
     )
     assert response.status_code == expected_status

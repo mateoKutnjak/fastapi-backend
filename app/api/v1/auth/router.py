@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.auth import services
-from app.auth.schemas import RefreshTokenRequest, TokenResponse
+from app.api.v1.auth import services
+from app.api.v1.auth.schemas import RefreshTokenRequest, TokenResponse
 from app.core.db import AsyncSession, get_db
-from app.users.schemas import UserCreate
+from app.api.v1.users.schemas import UserCreate
 
 router = APIRouter()
 

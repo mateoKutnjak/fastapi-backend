@@ -4,12 +4,12 @@ from typing import Annotated
 from fastapi import Body, HTTPException, status
 from fastapi.params import Depends
 
-from app.auth.schemas import TokenResponse
+from app.api.v1.auth.schemas import TokenResponse
 from app.core.db import AsyncSession, get_db
 from app.core.exceptions import FieldConflictException
 from app.core.security import TokenType, create_token, verify_password, verify_token
-from app.users.schemas import UserCreate
-from app.users.services import (
+from app.api.v1.users.schemas import UserCreate
+from app.api.v1.users.services import (
     create_user,
     get_user_by_email,
     get_user_by_id,
