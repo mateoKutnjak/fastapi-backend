@@ -2,10 +2,11 @@ import uuid
 
 from sqlalchemy import select
 
-from app.core.db import AsyncSession
-from app.core.security import hash_password
 from app.api.v1.users.models import Role, User
 from app.api.v1.users.schemas import UserCreate
+from app.core.db import AsyncSession
+from app.core.exceptions.domain_exceptions import UserNotFoundError
+from app.core.security import hash_password
 
 
 async def get_all_users(db: AsyncSession):
@@ -13,22 +14,28 @@ async def get_all_users(db: AsyncSession):
     return result.scalars().all()
 
 
-async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID):
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> User:
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise UserNotFoundError()
+    return user
 
 
-async def get_user_by_username(db: AsyncSession, username: str):
-    result = await db.execute(select(User).where(User.username == username))
-    return result.scalar_one_or_none()
+async def get_user_by_username(db: AsyncSession, username: str) -> User:
+    user = await db.scalar(select(User).where(User.username == username))
+    if user is None:
+        raise UserNotFoundError()
+    return user
 
 
-async def get_user_by_email(db: AsyncSession, email: str):
-    result = await db.execute(select(User).where(User.email == email))
-    return result.scalar_one_or_none()
+async def get_user_by_email(db: AsyncSession, email: str) -> User:
+    user = await db.scalar(select(User).where(User.email == email))
+    if user is None:
+        raise UserNotFoundError()
+    return user
 
 
-async def create_user(db: AsyncSession, data: UserCreate):
+async def create_user(db: AsyncSession, data: UserCreate) -> User:
     default_role = await get_default_role(db)
 
     user = User(

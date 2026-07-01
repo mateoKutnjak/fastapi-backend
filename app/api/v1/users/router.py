@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth.dependencies import get_current_user, require_permission
-from app.core.db import get_db
 from app.api.v1.users import services
 from app.api.v1.users.models import User
 from app.api.v1.users.schemas import UserResponsePrivate
+from app.core.db import get_db
+from app.core.exceptions.domain_exceptions import UserNotFoundError
+from app.core.exceptions.http_exceptions import NotFoundException
 
 router = APIRouter()
 
@@ -24,7 +26,10 @@ async def get_user(
     current_user: Annotated[User, Depends(require_permission("users:read"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await services.get_user_by_id(db, user_id)
+    try:
+        return await services.get_user_by_id(db, user_id)
+    except UserNotFoundError:
+        raise NotFoundException()
 
 
 @router.get("/", response_model=list[UserResponsePrivate])

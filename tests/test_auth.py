@@ -1,4 +1,5 @@
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 
 from app.core.security import TokenType, create_token
@@ -13,7 +14,7 @@ async def test_register_user_validation_error(client: AsyncClient):
             "username": "testuser",
         },
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     assert "email" in response.text
     assert "password" in response.text
 
@@ -33,8 +34,12 @@ async def test_register_user_duplicate_email(
         },
     )
 
-    assert response.status_code == 409
-    assert "Email already exists" in response.text
+    data = response.json()
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["error"]["status_code"] == status.HTTP_409_CONFLICT
+    assert data["error"]["detail"] == "Conflict"
+    assert data["error"]["fields"]["email"] == "Email already exists"
 
 
 @pytest.mark.asyncio
@@ -52,8 +57,13 @@ async def test_register_user_duplicate_username(
         },
     )
 
-    assert response.status_code == 409
-    assert "Username already exists" in response.text
+    data = response.json()
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+    assert data["error"]["status_code"] == status.HTTP_409_CONFLICT
+    assert data["error"]["detail"] == "Conflict"
+    assert len(data["error"]["fields"]) == 1
+    assert data["error"]["fields"]["username"] == "Username already exists"
 
 
 @pytest.mark.asyncio
@@ -67,7 +77,7 @@ async def test_register_user_success(client: AsyncClient):
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     assert "access_token" in response.json()
     assert "refresh_token" in response.json()
 
@@ -86,8 +96,10 @@ async def test_login_user_invalid_credentials(
         },
     )
 
-    assert response.status_code == 409
-    assert "Invalid email or password" in response.text
+    data = response.json()
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"
 
 
 @pytest.mark.asyncio
@@ -102,7 +114,7 @@ async def test_login_user_success(client: AsyncClient, registered_user_with_role
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.json()
     assert "refresh_token" in response.json()
 
@@ -120,8 +132,11 @@ async def test_expired_access_token(
         headers={"Authorization": f"Bearer {expired_access_token}"},
     )
 
-    assert response.status_code == 401
-    assert "Token has expired" in response.text
+    data = response.json()
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"
 
 
 @pytest.mark.asyncio
@@ -137,7 +152,7 @@ async def test_refresh_token_success(
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.json()
     assert "refresh_token" in response.json()
 
@@ -150,9 +165,11 @@ async def test_refresh_token_invalid_token(client: AsyncClient):
             "refresh_token": "invalidtoken",
         },
     )
+    data = response.json()
 
-    assert response.status_code == 401
-    assert "Token is malformed" in response.text
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"
 
 
 @pytest.mark.asyncio
@@ -172,5 +189,8 @@ async def test_refresh_token_expired_token(
         },
     )
 
-    assert response.status_code == 401
-    assert "Token has expired" in response.text
+    data = response.json()
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"

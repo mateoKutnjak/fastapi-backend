@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
 import jwt
-from fastapi import HTTPException, status
 from pwdlib import PasswordHash
 
 from app.config import settings
+from app.core.exceptions.http_exceptions import UnauthorizedException
 
 
 class TokenType(StrEnum):
@@ -53,31 +53,22 @@ def verify_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
             options={"require": ["exp", "sub", "type"]},
         )
 
-    except jwt.DecodeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token is malformed",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from e
+    except jwt.DecodeError:
+        raise UnauthorizedException(detail="Token is malformed")
 
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        raise UnauthorizedException(
             detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
         )
+
     except jwt.InvalidTokenError, ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        raise UnauthorizedException(
             detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     if payload.get("type") != str(expected_type):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        raise UnauthorizedException(
             detail="Invalid token type",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return uuid.UUID(payload.get("sub"))
