@@ -28,8 +28,8 @@ async def get_user(
 ):
     try:
         return await services.get_user_by_id(db, user_id)
-    except UserNotFoundError:
-        raise NotFoundException()
+    except UserNotFoundError as e:
+        raise NotFoundException() from e
 
 
 @router.get("/", response_model=list[UserResponsePrivate])

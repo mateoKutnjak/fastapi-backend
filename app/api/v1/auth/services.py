@@ -14,12 +14,19 @@ from app.api.v1.users.services import (
 )
 from app.core.db import AsyncSession, get_db
 from app.core.exceptions.domain_exceptions import (
+    ExpiredTokenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    InvalidTokenError,
     UserNotFoundError,
     ValidationError,
 )
-from app.core.security import TokenType, create_token, verify_password, verify_token
+from app.core.security import (
+    TokenType,
+    create_token,
+    verify_password,
+    verify_token,
+)
 
 
 def generate_tokens(subject: uuid.UUID) -> TokenResponse:
@@ -30,7 +37,8 @@ def generate_tokens(subject: uuid.UUID) -> TokenResponse:
 
 
 async def register_user(
-    body: Annotated[UserCreate, Body()], db: Annotated[AsyncSession, Depends(get_db)]
+    body: Annotated[UserCreate, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     conflict_fields = {}
 
@@ -72,8 +80,8 @@ async def refresh_token(
 ) -> TokenResponse:
     try:
         user_id = verify_token(refresh_token, TokenType.REFRESH)
-    except Exception:
-        raise InvalidRefreshTokenError()
+    except (InvalidTokenError, ExpiredTokenError) as e:
+        raise InvalidRefreshTokenError() from e
 
     user = await get_user_by_id(db, user_id)
 

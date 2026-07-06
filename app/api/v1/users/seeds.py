@@ -1,10 +1,14 @@
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-from app.core.db import AsyncSession
 from app.api.v1.users import constants
 from app.api.v1.users.models import Permission, Role
+from app.core.db import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 async def _seed_roles(db: AsyncSession):
@@ -35,7 +39,7 @@ async def _seed_role_permissions(db: AsyncSession):
         role = result.scalar_one_or_none()
 
         if not role:
-            print(f"Role '{role_name}' not found, skipping...")
+            logger.warning(f"Role '{role_name}' not found, skipping...")
             continue
 
         existing_permission_names = {p.name for p in role.permissions}
@@ -47,12 +51,14 @@ async def _seed_role_permissions(db: AsyncSession):
             permission = result.scalar_one_or_none()
 
             if not permission:
-                print(f"Permission '{permission_name}' not found, skipping...")
+                logger.warning(f"Permission '{permission_name}' not found, skipping...")
                 continue
 
             if permission.name not in existing_permission_names:
                 role.permissions.append(permission)
-                print(f"Permission '{permission_name}' assigned to role '{role_name}'.")
+                logger.info(
+                    f"Permission '{permission_name}' assigned to role '{role_name}'."
+                )
 
 
 async def seed(db: AsyncSession):

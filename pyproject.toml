@@ -20,3 +20,26 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.15.15",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "E", 
+    "F",
+    "I",
+    "N",
+    "Q",
+    "PL",
+    "RUF",
+    "S",
+    "T",
+    "UP",
+    "W",
+]
+
+# Ignore assertion errors in test files
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]

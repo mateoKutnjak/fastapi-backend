@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from fastapi import status
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import NullPool, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -48,13 +49,13 @@ async def setup_database(test_engine):
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    TestSessionLocal = async_sessionmaker(
+    test_session_local = async_sessionmaker(
         bind=test_engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
-    async with TestSessionLocal() as db:
+    async with test_session_local() as db:
         await seed_db(db)
 
     yield
@@ -76,14 +77,14 @@ async def db_session(
     trans = await conn.begin()
     await conn.begin_nested()
 
-    TestSessionLocal = async_sessionmaker(
+    test_session_local = async_sessionmaker(
         bind=conn,
         class_=AsyncSession,
         expire_on_commit=False,
         join_transaction_mode="create_savepoint",
     )
 
-    async with TestSessionLocal() as session:
+    async with test_session_local() as session:
         try:
             yield session
         finally:
@@ -123,7 +124,7 @@ async def registered_user_with_role(
 
         username = f"testuser_{unique_id}"
         email = f"test_{unique_id}@example.com"
-        password = "testpassword123"
+        password = "testpassword123"  # noqa: S105
 
         user_data = await register_test_user(
             client, username=username, email=email, password=password
@@ -145,7 +146,7 @@ async def register_test_user(
     client: AsyncClient,
     username: str = "testuser",
     email: str = "test@example.com",
-    password: str = "testpassword123",
+    password: str = "testpassword123",  # noqa: S107
 ) -> dict:
     response = await client.post(
         f"{API_VERSION}/auth/register",
@@ -155,13 +156,15 @@ async def register_test_user(
             "password": password,
         },
     )
-    assert response.status_code == 201, f"Failed to create user: {response.text}"
+    assert response.status_code == status.HTTP_201_CREATED, (
+        f"Failed to create user: {response.text}"
+    )
 
     user = await client.get(
         f"{API_VERSION}/users/me",
         headers={"Authorization": f"Bearer {response.json()['access_token']}"},
     )
-    assert user.status_code == 200, f"Failed to get user: {user.text}"
+    assert user.status_code == status.HTTP_200_OK, f"Failed to get user: {user.text}"
 
     return {
         "id": user.json()["id"],

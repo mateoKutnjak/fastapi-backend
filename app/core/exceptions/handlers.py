@@ -60,7 +60,9 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 async def unauthorized_exception_handler(request: Request, exc) -> JSONResponse:
     return error_response(
-        status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.detail, headers=exc.headers
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=exc.detail,
+        headers=exc.headers,
     )
 
 

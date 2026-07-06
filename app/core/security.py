@@ -1,12 +1,12 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 import jwt
 from pwdlib import PasswordHash
 
 from app.config import settings
-from app.core.exceptions.http_exceptions import UnauthorizedException
+from app.core.exceptions.domain_exceptions import ExpiredTokenError, InvalidTokenError
 
 
 class TokenType(StrEnum):
@@ -26,12 +26,14 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def create_token(
-    subject: uuid.UUID | str, token_type: TokenType, expires_delta: int | None = None
+    subject: uuid.UUID | str,
+    token_type: TokenType,
+    expires_delta: int | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=expires_delta)
+        expire = datetime.now(UTC) + timedelta(minutes=expires_delta)
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=settings.access_token_expire_minutes
             if token_type == TokenType.ACCESS
             else settings.refresh_token_expire_minutes
@@ -40,7 +42,9 @@ def create_token(
     payload = {"sub": str(subject), "exp": expire, "type": str(token_type)}
 
     return jwt.encode(
-        payload, settings.secret_key.get_secret_value(), algorithm=settings.algorithm
+        payload,
+        settings.secret_key.get_secret_value(),
+        algorithm=settings.algorithm,
     )
 
 
@@ -53,22 +57,16 @@ def verify_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
             options={"require": ["exp", "sub", "type"]},
         )
 
-    except jwt.DecodeError:
-        raise UnauthorizedException(detail="Token is malformed")
+    except jwt.DecodeError as e:
+        raise InvalidTokenError("Token is malformed") from e
 
-    except jwt.ExpiredSignatureError:
-        raise UnauthorizedException(
-            detail="Token has expired",
-        )
+    except jwt.ExpiredSignatureError as e:
+        raise ExpiredTokenError() from e
 
-    except jwt.InvalidTokenError, ValueError:
-        raise UnauthorizedException(
-            detail="Invalid authentication credentials",
-        )
+    except (jwt.InvalidTokenError, ValueError) as e:
+        raise InvalidTokenError("Invalid authentication credentials") from e
 
     if payload.get("type") != str(expected_type):
-        raise UnauthorizedException(
-            detail="Invalid token type",
-        )
+        raise InvalidTokenError("Invalid token type")
 
     return uuid.UUID(payload.get("sub"))

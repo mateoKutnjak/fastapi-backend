@@ -5,17 +5,20 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
 from app.api.v1.auth.schemas import RefreshTokenRequest, TokenResponse
-from app.core.db import AsyncSession, get_db
 from app.api.v1.users.schemas import UserCreate
+from app.core.db import AsyncSession, get_db
 
 router = APIRouter()
 
 
 @router.post(
-    "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
+    "/register",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def register(
-    body: Annotated[UserCreate, Body()], db: Annotated[AsyncSession, Depends(get_db)]
+    body: Annotated[UserCreate, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await services.register_user(body, db)
 

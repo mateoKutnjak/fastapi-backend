@@ -6,7 +6,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
