@@ -26,3 +26,11 @@ class InvalidTokenError(DomainError):
 
 class ExpiredTokenError(DomainError):
     pass
+
+
+class InvalidVerificationTokenError(DomainError):
+    pass
+
+
+class ExpiredVerificationTokenError(DomainError):
+    pass

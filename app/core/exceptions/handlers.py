@@ -3,14 +3,18 @@ from fastapi.responses import JSONResponse
 
 from app.core.exceptions.domain_exceptions import (
     DomainError,
+    ExpiredVerificationTokenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    InvalidVerificationTokenError,
     UserNotFoundError,
     ValidationError,
 )
 from app.core.exceptions.http_exceptions import (
     AppException,
     ConflictException,
+    ExpiredVerificationTokenException,
+    InvalidVerificationTokenException,
     NotFoundException,
     UnauthorizedException,
 )
@@ -20,6 +24,8 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     InvalidCredentialsError: UnauthorizedException,
     InvalidRefreshTokenError: UnauthorizedException,
     ValidationError: ConflictException,
+    InvalidVerificationTokenError: InvalidVerificationTokenException,
+    ExpiredVerificationTokenError: ExpiredVerificationTokenException,
 }
 
 
@@ -83,4 +89,22 @@ async def field_conflict_exception_handler(request: Request, exc) -> JSONRespons
         status_code=status.HTTP_409_CONFLICT,
         detail=exc.detail,
         fields=exc.fields,
+    )
+
+
+async def invalid_verification_token_exception_handler(
+    request: Request, exc
+) -> JSONResponse:
+    return error_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=exc.detail,
+    )
+
+
+async def expired_verification_token_exception_handler(
+    request: Request, exc
+) -> JSONResponse:
+    return error_response(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=exc.detail,
     )

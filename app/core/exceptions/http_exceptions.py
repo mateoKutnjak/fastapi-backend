@@ -5,7 +5,7 @@ class AppException(HTTPException):
     status_code: int = status.HTTP_401_UNAUTHORIZED
     detail: str = "Internal server error"
 
-    def __init__(self, detail: str = None):
+    def __init__(self, detail: str | None = None):
         super().__init__(
             status_code=self.__class__.status_code,
             detail=detail or self.__class__.detail,
@@ -23,7 +23,6 @@ class BadRequestException(AppException):
 class UnauthorizedException(AppException):
     status_code: int = status.HTTP_401_UNAUTHORIZED
     detail: str = "Unauthorized"
-    headers = {"WWW-Authenticate": "Bearer"}
 
 
 class ForbiddenException(AppException):
@@ -54,3 +53,13 @@ class FieldConflictException(ConflictException):
                 "detail": self.detail,
             }
         }
+
+
+class InvalidVerificationTokenException(AppException):
+    status_code: int = status.HTTP_400_BAD_REQUEST
+    detail: str = "Invalid verification token"
+
+
+class ExpiredVerificationTokenException(AppException):
+    status_code: int = status.HTTP_400_BAD_REQUEST
+    detail: str = "Expired verification token"

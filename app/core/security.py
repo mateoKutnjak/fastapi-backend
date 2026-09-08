@@ -1,3 +1,4 @@
+import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -70,3 +71,7 @@ def verify_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
         raise InvalidTokenError("Invalid token type")
 
     return uuid.UUID(payload.get("sub"))
+
+
+def hash_verification_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()

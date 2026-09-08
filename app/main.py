@@ -9,16 +9,20 @@ from app.core.exceptions.handlers import (
     app_exception_handler,
     conflict_exception_handler,
     domain_exception_handler,
+    expired_verification_token_exception_handler,
     field_conflict_exception_handler,
     forbidden_exception_handler,
+    invalid_verification_token_exception_handler,
     not_found_exception_handler,
     unauthorized_exception_handler,
 )
 from app.core.exceptions.http_exceptions import (
     AppException,
     ConflictException,
+    ExpiredVerificationTokenException,
     FieldConflictException,
     ForbiddenException,
+    InvalidVerificationTokenException,
     NotFoundException,
     UnauthorizedException,
 )
@@ -40,6 +44,12 @@ app.add_exception_handler(ForbiddenException, forbidden_exception_handler)
 app.add_exception_handler(NotFoundException, not_found_exception_handler)
 app.add_exception_handler(ConflictException, conflict_exception_handler)
 app.add_exception_handler(FieldConflictException, field_conflict_exception_handler)
+app.add_exception_handler(
+    InvalidVerificationTokenException, invalid_verification_token_exception_handler
+)
+app.add_exception_handler(
+    ExpiredVerificationTokenException, expired_verification_token_exception_handler
+)
 
 app.add_exception_handler(DomainError, domain_exception_handler)
 

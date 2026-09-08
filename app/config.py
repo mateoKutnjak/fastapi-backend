@@ -14,24 +14,29 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    server_url: str
+    api_prefix: str
+
     secret_key: SecretStr
     algorithm: str = "HS256"
 
     access_token_expire_minutes: int = 15
     refresh_token_expire_minutes: int = 10080
 
+    email_verification_token_expire_seconds: int = 3600
+
     # max_upload_size_bytes: int = 5 * 1024 * 1024  # 5 MB
 
     # reset_token_expire_minutes: int = 60
 
-    # mail_server: str = "localhost"
-    # mail_port: int = 587
-    # mail_username: str = ""
-    # mail_password: SecretStr = SecretStr("")
-    # mail_from: str = "noreply@example.com"
-    # mail_use_tls: bool = True
-
-    # frontend_url: str = "http://localhost:8000"
+    mail_server: str = "localhost"
+    mail_port: int = 587
+    mail_username: str = ""
+    mail_password: SecretStr = SecretStr("")
+    mail_from: str = "noreply@example.com"
+    mail_starttls: bool = False
+    mail_ssl_tls: bool = True
+    suppress_send: bool = False
 
     # s3_bucket_name: str
     # s3_region: str = "eu-north-1"

@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import AsyncGenerator
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -106,7 +107,7 @@ async def client(
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://test",
+        base_url=test_settings.server_url + test_settings.api_prefix,
     ) as ac:
         yield ac
 
@@ -173,3 +174,15 @@ async def register_test_user(
         "password": password,
         **response.json(),
     }
+
+
+@pytest.fixture(autouse=True)
+def mock_send_verification_email(monkeypatch):
+    mock = AsyncMock()
+
+    monkeypatch.setattr(
+        "app.core.email.FastApiMailSender.send_verification_mail",
+        mock,
+    )
+
+    return mock
