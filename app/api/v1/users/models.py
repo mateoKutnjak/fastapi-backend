@@ -37,7 +37,10 @@ class Role(Base):
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
 
     permissions = relationship(
-        "Permission", secondary="role_permissions", back_populates="roles"
+        "Permission",
+        secondary="role_permissions",
+        back_populates="roles",
+        lazy="selectin",
     )
 
 

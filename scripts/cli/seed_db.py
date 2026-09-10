@@ -5,7 +5,7 @@ from app.core.seed import seed_db
 
 
 async def seed():
-    async with AsyncSessionLocal as db:
+    async with AsyncSessionLocal() as db:
         await seed_db(db)
 
 

@@ -39,7 +39,7 @@ async def login(
 ):
     # TODO change username / email missmatch in OAuth2PasswordRequestForm
     return await services.login_user(
-        db, email=form_data.username, password=form_data.password
+        db, identifier=form_data.username, password=form_data.password
     )
 
 

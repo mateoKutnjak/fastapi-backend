@@ -12,22 +12,34 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Database
+
     database_url: str
+
+    # URL
 
     server_url: str
     api_prefix: str
 
+    # Security
+
     secret_key: SecretStr
     algorithm: str = "HS256"
+
+    # Authentication tokens
 
     access_token_expire_minutes: int = 15
     refresh_token_expire_minutes: int = 10080
 
+    # Email
+
     email_verification_token_expire_seconds: int = 3600
 
-    # max_upload_size_bytes: int = 5 * 1024 * 1024  # 5 MB
+    # Admin
 
-    # reset_token_expire_minutes: int = 60
+    admin_secret_key: SecretStr
+
+    # Mail
 
     mail_server: str = "localhost"
     mail_port: int = 587
@@ -37,12 +49,6 @@ class Settings(BaseSettings):
     mail_starttls: bool = False
     mail_ssl_tls: bool = True
     suppress_send: bool = False
-
-    # s3_bucket_name: str
-    # s3_region: str = "eu-north-1"
-    # s3_access_key_id: SecretStr | None = None
-    # s3_secret_access_key: SecretStr | None = None
-    # s3_endpoint_url: str | None = None
 
 
 settings = Settings()

@@ -12,6 +12,7 @@ dependencies = [
     "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.14.1",
     "pyjwt>=2.13.0",
+    "sqladmin[auth]>=0.31.1",
     "sqlalchemy>=2.0.50",
 ]
 

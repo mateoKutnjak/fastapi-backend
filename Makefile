@@ -22,8 +22,11 @@ apply-migration-test:
 
 #### SEEDING ####
 
-seed:
-	uv run python3 -m scripts.cli.seed_db
+seed-dev:
+	ENV_FILE=".env.dev" uv run python3 -m scripts.cli.seed_db
+
+seed-test:
+	ENV_FILE=".env.test" uv run python3 -m scripts.cli.seed_db
 
 #### TESTING ####
 

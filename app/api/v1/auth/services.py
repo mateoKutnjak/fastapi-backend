@@ -90,8 +90,11 @@ async def register_user(
     return token_response, raw_token
 
 
-async def login_user(db: AsyncSession, email: str, password: str) -> TokenResponse:
-    user = await get_user_by_email(db, email)
+async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenResponse:
+    if identifier.count("@") > 0:
+        user = await get_user_by_email(db, identifier)
+    else:
+        user = await get_user_by_username(db, identifier)
 
     if not user or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
