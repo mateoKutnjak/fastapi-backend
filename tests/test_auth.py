@@ -88,7 +88,7 @@ async def test_register_user_success(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login_user_with_email_invalid_credentials(
+async def test_login_token_user_with_email_invalid_credentials(
     client: AsyncClient, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
@@ -108,7 +108,7 @@ async def test_login_user_with_email_invalid_credentials(
 
 
 @pytest.mark.asyncio
-async def test_login_user_with_username_invalid_credentials(
+async def test_login_token_user_with_username_invalid_credentials(
     client: AsyncClient, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
@@ -128,7 +128,7 @@ async def test_login_user_with_username_invalid_credentials(
 
 
 @pytest.mark.asyncio
-async def test_login_user_with_email_success(
+async def test_login_token_user_with_email_success(
     client: AsyncClient, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
@@ -147,7 +147,7 @@ async def test_login_user_with_email_success(
 
 
 @pytest.mark.asyncio
-async def test_login_user_with_username_success(
+async def test_login_token_user_with_username_success(
     client: AsyncClient, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
@@ -163,6 +163,116 @@ async def test_login_user_with_username_success(
     assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.json()
     assert "refresh_token" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_login_token_non_existing_user(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    response = await client.post(
+        f"{API_VERSION}/auth/token",
+        data={
+            "username": "nonexistinguser",
+            "password": "somepassword",
+        },
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json()["error"]["detail"] == "Not found"
+
+
+@pytest.mark.asyncio
+async def test_login_body_user_with_email_invalid_credentials(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
+    response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={
+            "identifier": user["email"],
+            "password": "wrongpassword",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"
+
+
+@pytest.mark.asyncio
+async def test_login_body_user_with_username_invalid_credentials(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
+    response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={
+            "identifier": user["username"],
+            "password": "wrongpassword",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert data["error"]["detail"] == "Unauthorized"
+
+
+@pytest.mark.asyncio
+async def test_login_body_user_with_email_success(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
+    response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={
+            "identifier": user["email"],
+            "password": user["password"],
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "access_token" in response.json()
+    assert "refresh_token" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_login_body_user_with_username_success(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    user = await registered_user_with_role("user")
+
+    response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={
+            "identifier": user["username"],
+            "password": user["password"],
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "access_token" in response.json()
+    assert "refresh_token" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_login_body_non_existing_user(
+    client: AsyncClient, registered_user_with_role: dict
+):
+    response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={
+            "identifier": "nonexistinguser",
+            "password": "somepassword",
+        },
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json()["error"]["detail"] == "Not found"
 
 
 @pytest.mark.asyncio

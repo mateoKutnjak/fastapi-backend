@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
 from app.api.v1.auth.schemas import RefreshTokenRequest, TokenResponse
-from app.api.v1.users.schemas import UserCreate
+from app.api.v1.users.schemas import UserCreate, UserLogin
 from app.core.db import AsyncSession, get_db
 from app.core.email import FastApiMailSender
 
@@ -33,13 +33,23 @@ async def register(
 
 
 @router.post("/token", response_model=TokenResponse)
-async def login(
+async def token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # TODO change username / email missmatch in OAuth2PasswordRequestForm
     return await services.login_user(
         db, identifier=form_data.username, password=form_data.password
+    )
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(
+    body: Annotated[UserLogin, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await services.login_user(
+        db, identifier=body.identifier, password=body.password
     )
 
 
