@@ -50,5 +50,9 @@ class Settings(BaseSettings):
     mail_ssl_tls: bool = True
     suppress_send: bool = False
 
+    # Google OAuth
+
+    google_client_id: str
+
 
 settings = Settings()

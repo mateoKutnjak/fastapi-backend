@@ -34,3 +34,17 @@ class InvalidVerificationTokenError(DomainError):
 
 class ExpiredVerificationTokenError(DomainError):
     pass
+
+
+class AccountLinkingError(DomainError):
+    pass
+
+
+class InvalidOAuthTokenError(DomainError):
+    pass
+
+
+class RoleNotFoundError(DomainError):
+    def __init__(self, name: str):
+        self.name = name
+        super().__init__(f"Role not found: {self.name}")

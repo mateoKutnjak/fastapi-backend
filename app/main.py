@@ -6,6 +6,7 @@ from sqladmin import Admin
 from app.admin import (
     AdminAuth,
     EmailVerificationTokenAdmin,
+    OAuthAccountAdmin,
     PermissionAdmin,
     RoleAdmin,
     UserAdmin,
@@ -73,3 +74,4 @@ admin.add_view(UserAdmin)
 admin.add_view(PermissionAdmin)
 admin.add_view(RoleAdmin)
 admin.add_view(EmailVerificationTokenAdmin)
+admin.add_view(OAuthAccountAdmin)

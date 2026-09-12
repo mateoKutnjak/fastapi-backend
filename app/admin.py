@@ -7,7 +7,13 @@ from sqladmin.authentication import AuthenticationBackend
 
 from app.api.v1.auth.services import login_user
 from app.api.v1.users.constants import PermissionEnum
-from app.api.v1.users.models import EmailVerificationToken, Permission, Role, User
+from app.api.v1.users.models import (
+    EmailVerificationToken,
+    OAuthAccount,
+    Permission,
+    Role,
+    User,
+)
 from app.api.v1.users.services import get_user_by_id
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions.domain_exceptions import (
@@ -108,4 +114,21 @@ class EmailVerificationTokenAdmin(ModelView, model=EmailVerificationToken):
 
     can_create = False
     can_edit = False
+    can_delete = True
+
+
+class OAuthAccountAdmin(ModelView, model=OAuthAccount):
+    column_list: ClassVar[list] = [
+        OAuthAccount.id,
+        "user.email",
+        OAuthAccount.provider,
+        OAuthAccount.provider_user_id,
+    ]
+    column_searchable_list: ClassVar[list] = [
+        OAuthAccount.provider,
+        OAuthAccount.provider_user_id,
+    ]
+
+    can_create = False
+    can_edit = True
     can_delete = True

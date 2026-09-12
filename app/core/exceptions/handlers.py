@@ -5,6 +5,7 @@ from app.core.exceptions.domain_exceptions import (
     DomainError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
+    InvalidOAuthTokenError,
     InvalidRefreshTokenError,
     InvalidVerificationTokenError,
     UserNotFoundError,
@@ -26,6 +27,7 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     ValidationError: ConflictException,
     InvalidVerificationTokenError: InvalidVerificationTokenException,
     ExpiredVerificationTokenError: ExpiredVerificationTokenException,
+    InvalidOAuthTokenError: UnauthorizedException,
 }
 
 
@@ -106,5 +108,12 @@ async def expired_verification_token_exception_handler(
 ) -> JSONResponse:
     return error_response(
         status_code=status.HTTP_400_BAD_REQUEST,
+        detail=exc.detail,
+    )
+
+
+async def invalid_oauth_token_exception_handler(request: Request, exc) -> JSONResponse:
+    return error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
         detail=exc.detail,
     )

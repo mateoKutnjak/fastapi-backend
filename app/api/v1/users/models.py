@@ -1,8 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import UUID, Column, DateTime, ForeignKey, String, Table
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import (
+    UUID,
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
+    Table,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.core.db import Base
 from app.core.mixins import TimestampMixin
@@ -20,7 +28,7 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
@@ -28,6 +36,10 @@ class User(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"User(id={self.id}, username={self.username}, email={self.email})"
+
+    @validates("email")
+    def normalize_email(self, key, email: str) -> str:
+        return email.lower() if email else email
 
 
 class Role(Base):
@@ -71,6 +83,25 @@ class EmailVerificationToken(Base, TimestampMixin):
         DateTime(timezone=True),
         nullable=True,
     )
+
+    user: Mapped[User] = relationship(lazy="selectin")
+
+
+class OAuthAccount(Base, TimestampMixin):
+    __tablename__ = "oauth_accounts"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_user_id", name="uq_provider_account"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    provider_user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     user: Mapped[User] = relationship(lazy="selectin")
 

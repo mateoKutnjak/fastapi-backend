@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
 from app.api.v1.auth.schemas import RefreshTokenRequest, TokenResponse
-from app.api.v1.users.schemas import UserCreate, UserLogin
+from app.api.v1.users.schemas import GoogleAuthRequest, UserCreate, UserLogin
 from app.core.db import AsyncSession, get_db
 from app.core.email import FastApiMailSender
 
@@ -68,3 +68,13 @@ async def verify_email(
 ):
     await services.verify_email(db, token)
     return {"detail": "Email verified successfully"}
+
+
+@router.post("/google", response_model=TokenResponse)
+async def google_login(
+    body: Annotated[GoogleAuthRequest, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await services.google_sign_in(
+        db, body.id_token
+    )

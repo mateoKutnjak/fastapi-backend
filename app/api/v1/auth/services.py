@@ -2,10 +2,14 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.auth.schemas import TokenResponse
-from app.api.v1.users.models import EmailVerificationToken, User
+from app.api.v1.users.constants import DEFAULT_ROLE
+from app.api.v1.users.models import EmailVerificationToken, OAuthAccount, Role, User
 from app.api.v1.users.schemas import UserCreate
 from app.api.v1.users.services import (
     create_user,
@@ -16,12 +20,15 @@ from app.api.v1.users.services import (
 from app.config import settings
 from app.core.db import AsyncSession
 from app.core.exceptions.domain_exceptions import (
+    AccountLinkingError,
     ExpiredTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
+    InvalidOAuthTokenError,
     InvalidRefreshTokenError,
     InvalidTokenError,
     InvalidVerificationTokenError,
+    RoleNotFoundError,
     UserNotFoundError,
     ValidationError,
 )
@@ -39,6 +46,15 @@ def generate_tokens(subject: uuid.UUID) -> TokenResponse:
         access_token=create_token(subject, TokenType.ACCESS),
         refresh_token=create_token(subject, TokenType.REFRESH),
     )
+
+
+async def get_role_by_name(db: AsyncSession, name: str):
+    role = await db.scalar(select(Role).where(Role.name == name))
+
+    if not role:
+        raise RoleNotFoundError(name)
+
+    return role
 
 
 async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str:
@@ -142,3 +158,72 @@ async def verify_email(db: AsyncSession, raw_token: str) -> None:
     )
     await db.delete(token)
     await db.commit()
+
+
+async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
+
+    try:
+        payload = id_token.verify_oauth2_token(
+            token_received,
+            requests.Request(),
+            settings.google_client_id,
+        )
+    except ValueError as e:
+        raise InvalidOAuthTokenError() from e
+
+    sub = payload["sub"]
+    email = payload.get("email").lower() if payload.get("email") else None
+    email_verified = payload.get("email_verified", False)
+
+    # Fetch the OAuthAccount if it exists
+    o_auth_account = await db.scalar(
+        select(OAuthAccount).where(
+            OAuthAccount.provider == "google",
+            OAuthAccount.provider_user_id == sub,
+        )
+    )
+
+    if o_auth_account:
+        # Update email if it has changed
+        o_auth_account.email = email
+        # Fetch the associated user from the database
+        user = await db.get(User, o_auth_account.user_id)
+        # Here we proceed with the login flow for the existing user
+    else:
+        existing_user = await db.scalar(select(User).where(User.email == email))
+
+        if existing_user:
+            # If OAuthAccount does not exist, we link it to the existing user
+            user = existing_user
+        else:
+            role = await get_role_by_name(db, DEFAULT_ROLE)
+
+            # If no existing user is found, we create a new user
+            user = User(
+                email=email,
+                password_hash=None,
+                is_verified=email_verified,
+                role_id=role.id,
+            )
+            db.add(user)
+            await db.flush()
+
+        # Create the OAuthAccount and link it to the user
+        o_auth_account = OAuthAccount(
+            provider="google",
+            provider_user_id=sub,
+            email=email,
+            user_id=user.id,
+        )
+
+        db.add(o_auth_account)
+
+    try:
+        # Attempt to commit the transaction to the database
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        raise AccountLinkingError() from e
+
+    await db.refresh(user)
+    return generate_tokens(user.id)

@@ -31,3 +31,7 @@ class UserResponse(UserBase):
 
 class UserResponsePrivate(UserResponse):
     id: uuid.UUID
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
