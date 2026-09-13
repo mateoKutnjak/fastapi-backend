@@ -87,6 +87,26 @@ class EmailVerificationToken(Base, TimestampMixin):
     user: Mapped[User] = relationship(lazy="selectin")
 
 
+class ForgotPasswordToken(Base, TimestampMixin):
+    __tablename__ = "forgot_password_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    user: Mapped[User] = relationship(lazy="selectin")
+
+
 class OAuthAccount(Base, TimestampMixin):
     __tablename__ = "oauth_accounts"
     __table_args__ = (
@@ -104,6 +124,10 @@ class OAuthAccount(Base, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     user: Mapped[User] = relationship(lazy="selectin")
+
+    @validates("email")
+    def normalize_email(self, key, email: str) -> str:
+        return email.lower() if email else email
 
 
 role_permissions = Table(

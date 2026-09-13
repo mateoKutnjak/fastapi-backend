@@ -63,3 +63,13 @@ class InvalidVerificationTokenException(AppException):
 class ExpiredVerificationTokenException(AppException):
     status_code: int = status.HTTP_400_BAD_REQUEST
     detail: str = "Expired verification token"
+
+
+class InvalidResetPasswordTokenException(AppException):
+    status_code: int = status.HTTP_401_UNAUTHORIZED
+    detail: str = "Invalid reset password token"
+
+
+class ExpiredResetPasswordTokenException(AppException):
+    status_code: int = status.HTTP_401_UNAUTHORIZED
+    detail: str = "Expired reset password token"

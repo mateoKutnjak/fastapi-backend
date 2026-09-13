@@ -54,3 +54,30 @@ class FastApiMailSender(EmailSender):
                 subtype=MessageType.html,
             )
         )
+
+    async def send_password_reset_mail(self, to: str, reset_token: str) -> None:
+        from fastapi_mail import MessageSchema, MessageType  # noqa: PLC0415
+
+        reset_url = (
+            f"{settings.server_url}{settings.api_prefix}"
+            f"/auth/reset-password?token={reset_token}"
+        )
+
+        body = f"""
+            <p>
+                Please reset your password by clicking on:
+                <a href="{reset_url}">Reset password</a>
+            </p>
+            <p>
+                If you did not request this, please ignore this email.
+            </p>
+        """
+
+        await self._mail.send_message(
+            MessageSchema(
+                subject="Reset your password",
+                recipients=[to],
+                body=body,
+                subtype=MessageType.html,
+            )
+        )

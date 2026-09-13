@@ -29,7 +29,7 @@ async def get_user_by_username(db: AsyncSession, username: str) -> User:
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User:
-    user = await db.scalar(select(User).where(User.email == email))
+    user = await db.scalar(select(User).where(User.email == email.lower()))
     if user is None:
         raise UserNotFoundError()
     return user

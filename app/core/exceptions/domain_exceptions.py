@@ -48,3 +48,11 @@ class RoleNotFoundError(DomainError):
     def __init__(self, name: str):
         self.name = name
         super().__init__(f"Role not found: {self.name}")
+
+
+class InvalidPasswordResetTokenError(DomainError):
+    pass
+
+
+class ExpiredPasswordResetTokenError(DomainError):
+    pass

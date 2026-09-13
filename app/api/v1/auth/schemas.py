@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TokenResponse(BaseModel):
@@ -8,3 +8,16 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str

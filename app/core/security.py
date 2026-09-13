@@ -73,5 +73,5 @@ def verify_token(token: str, expected_type: TokenType) -> uuid.UUID | None:
     return uuid.UUID(payload.get("sub"))
 
 
-def hash_verification_token(token: str) -> str:
+def hash_string(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()

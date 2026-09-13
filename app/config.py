@@ -35,6 +35,10 @@ class Settings(BaseSettings):
 
     email_verification_token_expire_seconds: int = 3600
 
+    # Password reset
+
+    password_reset_token_expire_seconds: int = 900
+
     # Admin
 
     admin_secret_key: SecretStr

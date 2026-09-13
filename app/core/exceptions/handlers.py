@@ -3,9 +3,11 @@ from fastapi.responses import JSONResponse
 
 from app.core.exceptions.domain_exceptions import (
     DomainError,
+    ExpiredPasswordResetTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
     InvalidOAuthTokenError,
+    InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
     InvalidVerificationTokenError,
     UserNotFoundError,
@@ -14,7 +16,9 @@ from app.core.exceptions.domain_exceptions import (
 from app.core.exceptions.http_exceptions import (
     AppException,
     ConflictException,
+    ExpiredResetPasswordTokenException,
     ExpiredVerificationTokenException,
+    InvalidResetPasswordTokenException,
     InvalidVerificationTokenException,
     NotFoundException,
     UnauthorizedException,
@@ -28,6 +32,8 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     InvalidVerificationTokenError: InvalidVerificationTokenException,
     ExpiredVerificationTokenError: ExpiredVerificationTokenException,
     InvalidOAuthTokenError: UnauthorizedException,
+    InvalidPasswordResetTokenError: InvalidResetPasswordTokenException,
+    ExpiredPasswordResetTokenError: ExpiredResetPasswordTokenException,
 }
 
 

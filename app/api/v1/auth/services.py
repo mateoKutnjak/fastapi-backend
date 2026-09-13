@@ -7,9 +7,15 @@ from google.oauth2 import id_token
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from app.api.v1.auth.schemas import TokenResponse
+from app.api.v1.auth.schemas import ResetPasswordRequest, TokenResponse
 from app.api.v1.users.constants import DEFAULT_ROLE
-from app.api.v1.users.models import EmailVerificationToken, OAuthAccount, Role, User
+from app.api.v1.users.models import (
+    EmailVerificationToken,
+    ForgotPasswordToken,
+    OAuthAccount,
+    Role,
+    User,
+)
 from app.api.v1.users.schemas import UserCreate
 from app.api.v1.users.services import (
     create_user,
@@ -21,10 +27,12 @@ from app.config import settings
 from app.core.db import AsyncSession
 from app.core.exceptions.domain_exceptions import (
     AccountLinkingError,
+    ExpiredPasswordResetTokenError,
     ExpiredTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
     InvalidOAuthTokenError,
+    InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
     InvalidTokenError,
     InvalidVerificationTokenError,
@@ -35,7 +43,8 @@ from app.core.exceptions.domain_exceptions import (
 from app.core.security import (
     TokenType,
     create_token,
-    hash_verification_token,
+    hash_password,
+    hash_string,
     verify_password,
     verify_token,
 )
@@ -60,7 +69,7 @@ async def get_role_by_name(db: AsyncSession, name: str):
 async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str:
     raw_token = secrets.token_urlsafe(32)
 
-    token_hash = hash_verification_token(raw_token)
+    token_hash = hash_string(raw_token)
 
     verification_token = EmailVerificationToken(
         user_id=user_id,
@@ -137,7 +146,7 @@ async def refresh_token(
 
 async def verify_email(db: AsyncSession, raw_token: str) -> None:
 
-    token_hash = hash_verification_token(raw_token)
+    token_hash = hash_string(raw_token)
 
     result = await db.execute(
         select(EmailVerificationToken).where(
@@ -156,6 +165,55 @@ async def verify_email(db: AsyncSession, raw_token: str) -> None:
     await db.execute(
         update(User).where(User.id == token.user_id).values(is_verified=True)
     )
+    await db.delete(token)
+    await db.commit()
+
+
+async def forgot_password(db: AsyncSession, email: str) -> str:
+    raw_token = secrets.token_urlsafe(32)
+
+    token_hash = hash_string(raw_token)
+
+    try:
+        user = await get_user_by_email(db, email)
+    except UserNotFoundError:
+        # Intentionally ignore exception to not reveal existance of the email
+        return None
+
+    if user:
+        password_reset_token = ForgotPasswordToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC)
+            + timedelta(seconds=settings.password_reset_token_expire_seconds),
+        )
+
+        db.add(password_reset_token)
+        await db.commit()
+
+    return raw_token
+
+
+async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
+    token_hash = hash_string(body.token)
+
+    result = await db.execute(
+        select(ForgotPasswordToken).where(ForgotPasswordToken.token_hash == token_hash)
+    )
+    token = result.scalar_one_or_none()
+
+    if not token:
+        raise InvalidPasswordResetTokenError()
+
+    if token.expires_at < datetime.now(UTC):
+        raise ExpiredPasswordResetTokenError()
+
+    user = await get_user_by_id(db, token.user_id)
+
+    if not user:
+        raise UserNotFoundError()
+
+    user.password_hash = hash_password(body.new_password)
     await db.delete(token)
     await db.commit()
 

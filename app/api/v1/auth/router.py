@@ -4,8 +4,17 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
-from app.api.v1.auth.schemas import RefreshTokenRequest, TokenResponse
-from app.api.v1.users.schemas import GoogleAuthRequest, UserCreate, UserLogin
+from app.api.v1.auth.schemas import (
+    ForgotPasswordRequest,
+    GoogleAuthRequest,
+    RefreshTokenRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+)
+from app.api.v1.users.schemas import (
+    UserCreate,
+    UserLogin,
+)
 from app.core.db import AsyncSession, get_db
 from app.core.email import FastApiMailSender
 
@@ -75,6 +84,32 @@ async def google_login(
     body: Annotated[GoogleAuthRequest, Body()],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await services.google_sign_in(
-        db, body.id_token
-    )
+    return await services.google_sign_in(db, body.id_token)
+
+
+@router.post("/forgot-password", response_model=None)
+async def forgot_password(
+    body: Annotated[ForgotPasswordRequest, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
+):
+    raw_token = await services.forgot_password(db, body.email)
+
+    if raw_token is not None:
+        fastapi_mail_sender = FastApiMailSender()
+        background_tasks.add_task(
+            fastapi_mail_sender.send_password_reset_mail, body.email, raw_token
+        )
+
+    return {
+        "detail": "If an account exists with that email, a reset link has been sent."
+    }
+
+
+@router.post("/reset-password", response_model=None)
+async def reset_password(
+    body: Annotated[ResetPasswordRequest, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await services.reset_password(db, body)
+    return {"detail": "Password has been reset successfully"}
