@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth.dependencies import get_current_user, require_permission
@@ -38,3 +38,28 @@ async def get_all_users(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await services.get_all_users(db)
+
+
+@router.delete("/me", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        await services.delete_user_by_id(db, current_user.id)
+    except UserNotFoundError as e:
+        raise NotFoundException() from e
+
+
+@router.delete(
+    "/{user_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_user(
+    user_id: Annotated[uuid.UUID, Path()],
+    current_user: Annotated[User, Depends(require_permission("users:delete"))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        await services.delete_user_by_id(db, user_id)
+    except UserNotFoundError as e:
+        raise NotFoundException() from e

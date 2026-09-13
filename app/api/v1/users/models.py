@@ -71,7 +71,10 @@ class EmailVerificationToken(Base, TimestampMixin):
     __tablename__ = "email_verification_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     token_hash: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
@@ -91,7 +94,10 @@ class ForgotPasswordToken(Base, TimestampMixin):
     __tablename__ = "forgot_password_tokens"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     token_hash: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )

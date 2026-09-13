@@ -35,6 +35,14 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User:
     return user
 
 
+async def delete_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> None:
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise UserNotFoundError()
+    await db.delete(user)
+    await db.commit()
+
+
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
     default_role = await get_default_role(db)
 
