@@ -198,8 +198,8 @@ async def test_login_token_non_existing_user(
         },
     )
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json()["error"]["detail"] == "Not found"
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["error"]["detail"] == "Unauthorized"
 
 
 @pytest.mark.asyncio
@@ -292,8 +292,8 @@ async def test_login_body_non_existing_user(
         },
     )
 
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json()["error"]["detail"] == "Not found"
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["error"]["detail"] == "Unauthorized"
 
 
 @pytest.mark.asyncio
