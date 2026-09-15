@@ -12,7 +12,7 @@ from app.core.exceptions.http_exceptions import (
     ForbiddenException,
     UnauthorizedException,
 )
-from app.core.security import TokenType, verify_token
+from app.core.security import verify_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
@@ -29,7 +29,7 @@ async def get_current_user(
         raise UnauthorizedException()
 
     try:
-        user_id = verify_token(token, TokenType.ACCESS)
+        user_id = verify_access_token(token)
     except (InvalidTokenError, ExpiredTokenError) as e:
         # * We catch the exception which has a message and status code and
         # * raise a new one to avoid exposing the message to potentinal attackers.

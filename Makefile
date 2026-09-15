@@ -17,16 +17,15 @@ make-migration:
 apply-migration-dev:
 	uv run alembic upgrade head
 
-apply-migration-test:
-	ENV_FILE=".env.test" uv run alembic upgrade head
-
 #### SEEDING ####
 
 seed-dev:
 	ENV_FILE=".env.dev" uv run python3 -m scripts.cli.seed_db
 
-seed-test:
-	ENV_FILE=".env.test" uv run python3 -m scripts.cli.seed_db
+#### CLEANUP ####
+
+cleanup-refresh-tokens-dev:
+	ENV_FILE=".env.dev" uv run python3 -m scripts.cli.cleanup_refresh_tokens
 
 #### TESTING ####
 

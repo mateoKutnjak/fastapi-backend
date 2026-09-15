@@ -1,4 +1,3 @@
-import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -13,6 +12,7 @@ from app.api.v1.users.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
+    RefreshToken,
     Role,
     User,
 )
@@ -43,20 +43,12 @@ from app.core.exceptions.domain_exceptions import (
     ValidationError,
 )
 from app.core.security import (
-    TokenType,
-    create_token,
+    create_access_token,
+    generate_random_token,
     hash_password,
     hash_string,
     verify_password,
-    verify_token,
 )
-
-
-def generate_tokens(subject: uuid.UUID) -> TokenResponse:
-    return TokenResponse(
-        access_token=create_token(subject, TokenType.ACCESS),
-        refresh_token=create_token(subject, TokenType.REFRESH),
-    )
 
 
 async def get_role_by_name(db: AsyncSession, name: str):
@@ -68,8 +60,60 @@ async def get_role_by_name(db: AsyncSession, name: str):
     return role
 
 
+async def create_refresh_token(
+    db: AsyncSession, user_id: uuid.UUID, expires_delta: int
+) -> str:
+    raw_token = generate_random_token()
+
+    token_hash = hash_string(raw_token)
+
+    refresh_token = RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires_at=datetime.now(UTC) + timedelta(minutes=expires_delta),
+    )
+
+    db.add(refresh_token)
+    await db.commit()
+
+    return raw_token
+
+
+async def verify_refresh_token(
+    db: AsyncSession, raw_refresh_token: str
+) -> tuple[str, uuid.UUID]:
+    hashed_refresh_token = hash_string(raw_refresh_token)
+
+    refresh_token_record = await db.scalar(
+        select(RefreshToken).where(RefreshToken.token_hash == hashed_refresh_token)
+    )
+
+    if not refresh_token_record:
+        raise InvalidRefreshTokenError()
+
+    if refresh_token_record.expires_at < datetime.now(UTC):
+        raise ExpiredTokenError()
+
+    await db.delete(refresh_token_record)
+    await db.commit()
+
+    new_refresh_token = generate_random_token()
+
+    new_refresh_token_record = RefreshToken(
+        user_id=refresh_token_record.user_id,
+        token_hash=hash_string(new_refresh_token),
+        expires_at=datetime.now(UTC)
+        + timedelta(minutes=settings.refresh_token_expire_minutes),
+    )
+
+    db.add(new_refresh_token_record)
+    await db.commit()
+
+    return new_refresh_token, refresh_token_record.user_id
+
+
 async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str:
-    raw_token = secrets.token_urlsafe(32)
+    raw_token = generate_random_token()
 
     token_hash = hash_string(raw_token)
 
@@ -77,7 +121,7 @@ async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str
         user_id=user_id,
         token_hash=token_hash,
         expires_at=datetime.now(UTC)
-        + timedelta(seconds=settings.email_verification_token_expire_seconds),
+        + timedelta(minutes=settings.email_verification_token_expire_minutes),
     )
 
     db.add(verification_token)
@@ -111,10 +155,15 @@ async def register_user(
 
     user = await create_user(db, body)
 
-    raw_token = await create_verification_token(db, user.id)
-    token_response = generate_tokens(user.id)
+    raw_email_verification_token = await create_verification_token(db, user.id)
+    token_response = TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=await create_refresh_token(
+            db, user.id, settings.refresh_token_expire_minutes
+        ),
+    )
 
-    return token_response, raw_token
+    return token_response, raw_email_verification_token
 
 
 async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenResponse:
@@ -134,7 +183,12 @@ async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenR
     if not user or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
 
-    return generate_tokens(user.id)
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=await create_refresh_token(
+            db, user.id, settings.refresh_token_expire_minutes
+        ),
+    )
 
 
 async def refresh_token(
@@ -142,17 +196,14 @@ async def refresh_token(
     refresh_token: str,
 ) -> TokenResponse:
     try:
-        user_id = verify_token(refresh_token, TokenType.REFRESH)
+        new_refresh_token, user_id = await verify_refresh_token(db, refresh_token)
     except (InvalidTokenError, ExpiredTokenError) as e:
         raise InvalidRefreshTokenError() from e
 
-    user = await get_user_by_id(db, user_id)
-
-    if user is None:
-        # Don't raise 404 to hide that user does not exist
-        raise InvalidRefreshTokenError()
-
-    return generate_tokens(user.id)
+    return TokenResponse(
+        access_token=create_access_token(user_id),
+        refresh_token=new_refresh_token,
+    )
 
 
 async def verify_email(db: AsyncSession, raw_token: str) -> None:
@@ -181,7 +232,7 @@ async def verify_email(db: AsyncSession, raw_token: str) -> None:
 
 
 async def forgot_password(db: AsyncSession, email: str) -> str:
-    raw_token = secrets.token_urlsafe(32)
+    raw_token = generate_random_token()
 
     token_hash = hash_string(raw_token)
 
@@ -196,7 +247,7 @@ async def forgot_password(db: AsyncSession, email: str) -> str:
             user_id=user.id,
             token_hash=token_hash,
             expires_at=datetime.now(UTC)
-            + timedelta(seconds=settings.password_reset_token_expire_seconds),
+            + timedelta(minutes=settings.password_reset_token_expire_minutes),
         )
 
         db.add(password_reset_token)
@@ -303,4 +354,10 @@ async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
         raise AccountLinkingError() from e
 
     await db.refresh(user)
-    return generate_tokens(user.id)
+
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=await create_refresh_token(
+            db, user.id, settings.refresh_token_expire_minutes
+        ),
+    )

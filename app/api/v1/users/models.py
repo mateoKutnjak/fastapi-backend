@@ -135,6 +135,24 @@ class OAuthAccount(Base, TimestampMixin):
     def normalize_email(self, key, email: str) -> str:
         return email.lower() if email else email
 
+class RefreshToken(Base, TimestampMixin):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(lazy="selectin")
+
 
 role_permissions = Table(
     "role_permissions",

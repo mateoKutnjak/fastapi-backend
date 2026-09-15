@@ -33,11 +33,11 @@ class Settings(BaseSettings):
 
     # Email
 
-    email_verification_token_expire_seconds: int = 3600
+    email_verification_token_expire_minutes: int = 60
 
     # Password reset
 
-    password_reset_token_expire_seconds: int = 900
+    password_reset_token_expire_minutes: int = 15
 
     # Admin
 

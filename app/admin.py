@@ -9,8 +9,10 @@ from app.api.v1.auth.services import login_user
 from app.api.v1.users.constants import PermissionEnum
 from app.api.v1.users.models import (
     EmailVerificationToken,
+    ForgotPasswordToken,
     OAuthAccount,
     Permission,
+    RefreshToken,
     Role,
     User,
 )
@@ -22,7 +24,7 @@ from app.core.exceptions.domain_exceptions import (
     InvalidTokenError,
     UserNotFoundError,
 )
-from app.core.security import TokenType, verify_token
+from app.core.security import verify_access_token
 
 
 def has_admin_dashboard_access(user: User) -> bool:
@@ -44,7 +46,7 @@ class AdminAuth(AuthenticationBackend):
             except UserNotFoundError, InvalidCredentialsError:
                 return False
 
-            user_id = verify_token(token_response.access_token, TokenType.ACCESS)
+            user_id = verify_access_token(token_response.access_token)
             user = await get_user_by_id(db, user_id)
 
             if not user or not has_admin_dashboard_access(user):
@@ -64,7 +66,7 @@ class AdminAuth(AuthenticationBackend):
             return False
 
         try:
-            user_id = verify_token(token, TokenType.ACCESS)
+            user_id = verify_access_token(token)
         except InvalidTokenError, ExpiredTokenError:
             return False
 
@@ -111,6 +113,33 @@ class EmailVerificationTokenAdmin(ModelView, model=EmailVerificationToken):
         EmailVerificationToken.token_hash,
     ]
     column_searchable_list: ClassVar[list] = [EmailVerificationToken.token_hash]
+
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+
+class ForgotPasswordTokenAdmin(ModelView, model=ForgotPasswordToken):
+    column_list: ClassVar[list] = [
+        ForgotPasswordToken.id,
+        "user.email",
+        ForgotPasswordToken.token_hash,
+    ]
+    column_searchable_list: ClassVar[list] = [ForgotPasswordToken.token_hash]
+
+    can_create = False
+    can_edit = False
+    can_delete = True
+
+
+class RefreshTokenAdmin(ModelView, model=RefreshToken):
+    column_list: ClassVar[list] = [
+        RefreshToken.id,
+        "user.email",
+        RefreshToken.token_hash,
+        RefreshToken.expires_at,
+    ]
+    column_searchable_list: ClassVar[list] = [RefreshToken.token_hash]
 
     can_create = False
     can_edit = False
