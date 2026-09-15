@@ -6,16 +6,15 @@ from google.oauth2 import id_token
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from app.api.v1.auth.schemas import ResetPasswordRequest, TokenResponse
-from app.api.v1.users.constants import DEFAULT_ROLE
-from app.api.v1.users.models import (
+from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
     RefreshToken,
-    Role,
-    User,
 )
+from app.api.v1.auth.schemas import ResetPasswordRequest, TokenResponse
+from app.api.v1.users.constants import DEFAULT_ROLE
+from app.api.v1.users.models import Role, User
 from app.api.v1.users.schemas import UserCreate
 from app.api.v1.users.services import (
     create_user,

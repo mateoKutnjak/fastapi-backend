@@ -7,8 +7,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.auth.models import EmailVerificationToken, ForgotPasswordToken
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
-from app.api.v1.users.models import EmailVerificationToken, ForgotPasswordToken, User
+from app.api.v1.users.models import User
 from tests.conftest import API_VERSION
 
 

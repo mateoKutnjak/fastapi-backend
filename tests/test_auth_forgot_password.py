@@ -6,8 +6,8 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.api.v1.auth.models import ForgotPasswordToken
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
-from app.api.v1.users.models import ForgotPasswordToken
 from app.core.db import AsyncSession
 from tests.conftest import API_VERSION
 

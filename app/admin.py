@@ -5,17 +5,15 @@ from fastapi import Request
 from sqladmin import ModelView
 from sqladmin.authentication import AuthenticationBackend
 
-from app.api.v1.auth.services import login_user
-from app.api.v1.users.constants import PermissionEnum
-from app.api.v1.users.models import (
+from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
-    Permission,
     RefreshToken,
-    Role,
-    User,
 )
+from app.api.v1.auth.services import login_user
+from app.api.v1.users.constants import PermissionEnum
+from app.api.v1.users.models import Permission, Role, User
 from app.api.v1.users.services import get_user_by_id
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions.domain_exceptions import (

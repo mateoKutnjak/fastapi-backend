@@ -5,8 +5,8 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.api.v1.auth.models import RefreshToken
 from app.api.v1.auth.services import create_refresh_token
-from app.api.v1.users.models import RefreshToken
 from app.core.db import AsyncSession
 from app.core.security import hash_string
 from tests.conftest import API_VERSION

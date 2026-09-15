@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import delete
 
-from app.api.v1.users.models import RefreshToken
+from app.api.v1.auth.models import RefreshToken
 from app.core.db import AsyncSessionLocal
 
 

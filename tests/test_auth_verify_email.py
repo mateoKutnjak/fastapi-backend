@@ -5,7 +5,8 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.api.v1.users.models import EmailVerificationToken, User
+from app.api.v1.auth.models import EmailVerificationToken
+from app.api.v1.users.models import User
 from app.core.db import AsyncSession
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
