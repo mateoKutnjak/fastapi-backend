@@ -56,3 +56,11 @@ class InvalidPasswordResetTokenError(DomainError):
 
 class ExpiredPasswordResetTokenError(DomainError):
     pass
+
+
+class OAuthEmailNotProvidedError(DomainError):
+    pass
+
+
+class OAuthEmailNotVerifiedError(DomainError):
+    pass

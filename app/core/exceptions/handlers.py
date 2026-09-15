@@ -10,6 +10,8 @@ from app.core.exceptions.domain_exceptions import (
     InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
     InvalidVerificationTokenError,
+    OAuthEmailNotProvidedError,
+    OAuthEmailNotVerifiedError,
     UserNotFoundError,
     ValidationError,
 )
@@ -34,6 +36,8 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     InvalidOAuthTokenError: UnauthorizedException,
     InvalidPasswordResetTokenError: InvalidResetPasswordTokenException,
     ExpiredPasswordResetTokenError: ExpiredResetPasswordTokenException,
+    OAuthEmailNotProvidedError: UnauthorizedException,
+    OAuthEmailNotVerifiedError: UnauthorizedException,
 }
 
 

@@ -36,6 +36,8 @@ from app.core.exceptions.domain_exceptions import (
     InvalidRefreshTokenError,
     InvalidTokenError,
     InvalidVerificationTokenError,
+    OAuthEmailNotProvidedError,
+    OAuthEmailNotVerifiedError,
     RoleNotFoundError,
     UserNotFoundError,
     ValidationError,
@@ -125,6 +127,10 @@ async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenR
         # Avoid leaking whether the identifier exists
         raise InvalidCredentialsError() from e
 
+    # For users who registered via OAuth and do not have a password set
+    if user.password_hash is None:
+        raise InvalidCredentialsError()
+
     if not user or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
 
@@ -143,7 +149,8 @@ async def refresh_token(
     user = await get_user_by_id(db, user_id)
 
     if user is None:
-        raise UserNotFoundError()
+        # Don't raise 404 to hide that user does not exist
+        raise InvalidRefreshTokenError()
 
     return generate_tokens(user.id)
 
@@ -233,6 +240,14 @@ async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
     except ValueError as e:
         raise InvalidOAuthTokenError() from e
 
+    # Sometimes payload does not include the email field, so we reject that
+    if payload.get("email") is None:
+        raise OAuthEmailNotProvidedError()
+
+    # If the email is not verified or is missing, raise an error
+    if not payload.get("email_verified"):
+        raise OAuthEmailNotVerifiedError()
+
     sub = payload["sub"]
     email = payload.get("email").lower() if payload.get("email") else None
     email_verified = payload.get("email_verified", False)
@@ -246,8 +261,8 @@ async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
     )
 
     if o_auth_account:
-        # Update email if it has changed
-        o_auth_account.email = email
+        # Update email if it has changed (and if it not ommitted from payload)
+        o_auth_account.email = email if email else o_auth_account.email
         # Fetch the associated user from the database
         user = await db.get(User, o_auth_account.user_id)
         # Here we proceed with the login flow for the existing user
