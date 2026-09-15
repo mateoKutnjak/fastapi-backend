@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
+from app.api.v1.auth.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
     ForgotPasswordRequest,
     GoogleAuthRequest,
@@ -11,10 +12,8 @@ from app.api.v1.auth.schemas import (
     ResetPasswordRequest,
     TokenResponse,
 )
-from app.api.v1.users.schemas import (
-    UserCreate,
-    UserLogin,
-)
+from app.api.v1.users.models import User
+from app.api.v1.users.schemas import UserCreate, UserLogin
 from app.core.db import AsyncSession, get_db
 from app.core.email import FastApiMailSender
 
@@ -60,6 +59,22 @@ async def login(
     return await services.login_user(
         db, identifier=body.identifier, password=body.password
     )
+
+
+@router.post("/logout", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    body: Annotated[RefreshTokenRequest, Body()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await services.logout_user_from_one_device(db, body.refresh_token)
+
+
+@router.post("/logout-all", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+async def logout_all(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await services.logout_user_from_all_devices(db, current_user.id)
 
 
 @router.post("/refresh", response_model=TokenResponse)

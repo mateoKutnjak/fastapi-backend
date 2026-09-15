@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.auth.models import (
@@ -188,6 +188,26 @@ async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenR
             db, user.id, settings.refresh_token_expire_minutes
         ),
     )
+
+
+async def logout_user_from_one_device(
+    db: AsyncSession,
+    refresh_token: str,
+) -> None:
+    await db.execute(
+        delete(RefreshToken).where(
+            RefreshToken.token_hash == hash_string(refresh_token)
+        )
+    )
+    await db.commit()
+
+
+async def logout_user_from_all_devices(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> None:
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
+    await db.commit()
 
 
 async def refresh_token(
