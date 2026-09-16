@@ -24,10 +24,6 @@ class EmailVerificationToken(Base, TimestampMixin):
         DateTime(timezone=True),
         nullable=False,
     )
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
 
     user: Mapped[User] = relationship(lazy="selectin")
 
@@ -46,10 +42,6 @@ class ForgotPasswordToken(Base, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-    )
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
     )
 
     user: Mapped[User] = relationship(lazy="selectin")
