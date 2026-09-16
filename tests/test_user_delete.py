@@ -7,7 +7,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth.models import EmailVerificationToken, ForgotPasswordToken
+from app.api.v1.auth.models import (
+    EmailVerificationToken,
+    ForgotPasswordToken,
+    OAuthAccount,
+)
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import User
 from tests.conftest import API_VERSION
@@ -97,6 +101,34 @@ async def test_delete_me_cascades_forgot_password_token(
         select(ForgotPasswordToken).where(ForgotPasswordToken.user_id == user_id)
     )
     assert token_after is None
+
+
+@pytest.mark.anyio
+async def test_delete_me_cascades_oauth_account(
+    client: AsyncClient, db_session: AsyncSession, registered_user_with_role
+):
+    user = await registered_user_with_role(RoleEnum.USER)
+    user_id = uuid.UUID(user["id"])
+
+    oauth_account = OAuthAccount(
+        user_id=user_id,
+        provider="google",
+        provider_user_id=f"google-{uuid.uuid4().hex}",
+        email=user["email"],
+    )
+    db_session.add(oauth_account)
+    await db_session.flush()
+
+    response = await client.delete(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": f"Bearer {user['access_token']}"},
+    )
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    oauth_account_after = await db_session.scalar(
+        select(OAuthAccount).where(OAuthAccount.user_id == user_id)
+    )
+    assert oauth_account_after is None
 
 
 @pytest.mark.anyio
