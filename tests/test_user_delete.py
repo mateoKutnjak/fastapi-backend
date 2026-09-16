@@ -13,7 +13,7 @@ from app.api.v1.auth.models import (
     OAuthAccount,
     RefreshToken,
 )
-from app.api.v1.auth.services import create_refresh_token
+from app.api.v1.auth.services import create_refresh_token, forgot_password
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import User
 from tests.conftest import API_VERSION
@@ -153,6 +153,70 @@ async def test_delete_me_cascades_refresh_tokens(
         )
     ).all()
     assert refresh_tokens_after == []
+
+
+@pytest.mark.anyio
+async def test_delete_me_cascades_all_user_related_records(
+    client: AsyncClient, db_session: AsyncSession, registered_user_with_role
+):
+    user = await registered_user_with_role(RoleEnum.USER)
+    user_id = uuid.UUID(user["id"])
+
+    await forgot_password(db_session, user["email"])
+    await create_refresh_token(db_session, user_id, 60)
+
+    oauth_account = OAuthAccount(
+        user_id=user_id,
+        provider="google",
+        provider_user_id=f"google-{uuid.uuid4().hex}",
+        email=user["email"],
+    )
+    db_session.add(oauth_account)
+    await db_session.flush()
+
+    assert (
+        await db_session.scalar(
+            select(EmailVerificationToken).where(
+                EmailVerificationToken.user_id == user_id
+            )
+        )
+        is not None
+    )
+    assert (
+        await db_session.scalar(
+            select(ForgotPasswordToken).where(ForgotPasswordToken.user_id == user_id)
+        )
+        is not None
+    )
+    assert (
+        await db_session.scalar(
+            select(RefreshToken).where(RefreshToken.user_id == user_id)
+        )
+        is not None
+    )
+    assert (
+        await db_session.scalar(
+            select(OAuthAccount).where(OAuthAccount.user_id == user_id)
+        )
+        is not None
+    )
+
+    response = await client.delete(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": f"Bearer {user['access_token']}"},
+    )
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    for model in (
+        EmailVerificationToken,
+        ForgotPasswordToken,
+        RefreshToken,
+        OAuthAccount,
+    ):
+        assert (
+            await db_session.scalar(select(model).where(model.user_id == user_id))
+            is None
+        )
 
 
 @pytest.mark.anyio
