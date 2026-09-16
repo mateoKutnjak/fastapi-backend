@@ -2,10 +2,12 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions.domain_exceptions import (
+    CurrentUserHasNoPasswordError,
     DomainError,
     ExpiredPasswordResetTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
     InvalidOAuthTokenError,
     InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
@@ -38,6 +40,8 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     ExpiredPasswordResetTokenError: ExpiredResetPasswordTokenException,
     OAuthEmailNotProvidedError: UnauthorizedException,
     OAuthEmailNotVerifiedError: UnauthorizedException,
+    InvalidCurrentPasswordError: UnauthorizedException,
+    CurrentUserHasNoPasswordError: UnauthorizedException,
 }
 
 

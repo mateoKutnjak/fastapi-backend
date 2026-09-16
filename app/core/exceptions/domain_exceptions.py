@@ -64,3 +64,11 @@ class OAuthEmailNotProvidedError(DomainError):
 
 class OAuthEmailNotVerifiedError(DomainError):
     pass
+
+
+class InvalidCurrentPasswordError(DomainError):
+    pass
+
+
+class CurrentUserHasNoPasswordError(DomainError):
+    pass

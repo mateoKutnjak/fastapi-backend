@@ -12,7 +12,11 @@ from app.api.v1.auth.models import (
     OAuthAccount,
     RefreshToken,
 )
-from app.api.v1.auth.schemas import ResetPasswordRequest, TokenResponse
+from app.api.v1.auth.schemas import (
+    ChangePasswordRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+)
 from app.api.v1.users.constants import DEFAULT_ROLE
 from app.api.v1.users.models import Role, User
 from app.api.v1.users.schemas import UserCreate
@@ -26,10 +30,12 @@ from app.config import settings
 from app.core.db import AsyncSession
 from app.core.exceptions.domain_exceptions import (
     AccountLinkingError,
+    CurrentUserHasNoPasswordError,
     ExpiredPasswordResetTokenError,
     ExpiredTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
     InvalidOAuthTokenError,
     InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
@@ -301,6 +307,21 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
     # Delete all refresh tokens associated with the user to force re-authentication
     await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
 
+    await db.commit()
+
+
+async def change_password(
+    db: AsyncSession, user: User, body: ChangePasswordRequest
+) -> None:
+    if not user.password_hash:
+        raise CurrentUserHasNoPasswordError()
+
+    if not verify_password(body.current_password, user.password_hash):
+        raise InvalidCurrentPasswordError()
+
+    user.password_hash = hash_password(body.new_password)
+    # Delete all refresh tokens associated with the user to force re-authentication
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await db.commit()
 
 

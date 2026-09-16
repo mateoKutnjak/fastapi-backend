@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.api.v1.auth import services
 from app.api.v1.auth.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     GoogleAuthRequest,
     RefreshTokenRequest,
@@ -128,3 +129,14 @@ async def reset_password(
 ):
     await services.reset_password(db, body)
     return {"detail": "Password has been reset successfully"}
+
+
+@router.post(
+    "/change-password", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
+async def change_password(
+    body: Annotated[ChangePasswordRequest, Body()],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await services.change_password(db, current_user, body)
