@@ -94,7 +94,7 @@ async def verify_email(
     return {"detail": "Email verified successfully"}
 
 
-@router.post("/google", response_model=TokenResponse)
+@router.post("/oauth/google", response_model=TokenResponse)
 async def google_login(
     body: Annotated[GoogleAuthRequest, Body()],
     db: Annotated[AsyncSession, Depends(get_db)],
