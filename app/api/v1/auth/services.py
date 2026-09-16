@@ -73,7 +73,7 @@ async def create_refresh_token(
     )
 
     db.add(refresh_token)
-    await db.commit()
+    await db.flush()
 
     return raw_token
 
@@ -94,6 +94,7 @@ async def verify_refresh_token(
         raise ExpiredTokenError()
 
     await db.delete(refresh_token_record)
+    await db.flush()
 
     new_refresh_token = generate_random_token()
 
@@ -123,7 +124,7 @@ async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str
     )
 
     db.add(verification_token)
-    await db.commit()
+    await db.flush()
 
     return raw_token
 
@@ -160,6 +161,8 @@ async def register_user(
             db, user.id, settings.refresh_token_expire_minutes
         ),
     )
+
+    await db.commit()
 
     return token_response, raw_email_verification_token
 
@@ -217,6 +220,8 @@ async def refresh_token(
         new_refresh_token, user_id = await verify_refresh_token(db, refresh_token)
     except (InvalidTokenError, ExpiredTokenError) as e:
         raise InvalidRefreshTokenError() from e
+
+    await db.commit()
 
     return TokenResponse(
         access_token=create_access_token(user_id),
