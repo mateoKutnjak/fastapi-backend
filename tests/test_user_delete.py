@@ -11,7 +11,9 @@ from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
+    RefreshToken,
 )
+from app.api.v1.auth.services import create_refresh_token
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import User
 from tests.conftest import API_VERSION
@@ -129,6 +131,28 @@ async def test_delete_me_cascades_oauth_account(
         select(OAuthAccount).where(OAuthAccount.user_id == user_id)
     )
     assert oauth_account_after is None
+
+
+@pytest.mark.anyio
+async def test_delete_me_cascades_refresh_tokens(
+    client: AsyncClient, db_session: AsyncSession, registered_user_with_role
+):
+    user = await registered_user_with_role(RoleEnum.USER)
+    user_id = uuid.UUID(user["id"])
+    await create_refresh_token(db_session, user_id, 60)
+
+    response = await client.delete(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": f"Bearer {user['access_token']}"},
+    )
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    refresh_tokens_after = (
+        await db_session.scalars(
+            select(RefreshToken).where(RefreshToken.user_id == user_id)
+        )
+    ).all()
+    assert refresh_tokens_after == []
 
 
 @pytest.mark.anyio

@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.api.v1.auth.models import ForgotPasswordToken
 from app.api.v1.auth.services import forgot_password
+from app.config import settings
 from app.core.db import AsyncSession
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
@@ -133,3 +134,29 @@ async def test_reset_password_missing_field_returns_422(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "new_password",
+    [
+        "x" * (settings.password_min_length - 1),
+        "x" * (settings.password_max_length + 1),
+    ],
+)
+async def test_reset_password_rejects_password_outside_policy(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    registered_user_with_role: dict,
+    new_password: str,
+):
+    user = await registered_user_with_role("user")
+    raw_token = await forgot_password(db_session, user["email"])
+
+    response = await client.post(
+        f"{API_VERSION}/auth/reset-password",
+        json={"token": raw_token, "new_password": new_password},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert "new_password" in response.text

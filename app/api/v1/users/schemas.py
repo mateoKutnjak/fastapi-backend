@@ -2,6 +2,8 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.core.passwords import Password
+
 
 class RoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -17,7 +19,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=8)
+    password: Password
 
 
 class UserLogin(BaseModel):
@@ -31,5 +33,3 @@ class UserResponse(UserBase):
 
 class UserResponsePrivate(UserResponse):
     id: uuid.UUID
-
-

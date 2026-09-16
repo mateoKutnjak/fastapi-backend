@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from app.core.passwords import Password
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -16,7 +18,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: Password
 
 
 class GoogleAuthRequest(BaseModel):

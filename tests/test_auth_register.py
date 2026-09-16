@@ -2,6 +2,7 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from app.config import settings
 from tests.conftest import API_VERSION
 
 
@@ -11,6 +12,7 @@ async def test_register_user_validation_error(client: AsyncClient):
         f"{API_VERSION}/auth/register",
         json={
             "username": "testuser",
+            "email": "testuser@example.com",
         },
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -79,3 +81,27 @@ async def test_register_user_success(client: AsyncClient):
     assert response.status_code == status.HTTP_201_CREATED
     assert "access_token" in response.json()
     assert "refresh_token" in response.json()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "password",
+    [
+        "x" * (settings.password_min_length - 1),
+        "x" * (settings.password_max_length + 1),
+    ],
+)
+async def test_register_user_rejects_password_outside_policy(
+    client: AsyncClient, password: str
+):
+    response = await client.post(
+        f"{API_VERSION}/auth/register",
+        json={
+            "username": "password_policy_user",
+            "email": f"{password[:8]}@example.com",
+            "password": password,
+        },
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert "password" in response.text

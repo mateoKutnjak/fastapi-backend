@@ -212,3 +212,13 @@ async def test_expired_access_token(
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["detail"] == "Unauthorized"
+
+
+@pytest.mark.asyncio
+async def test_malformed_access_token(client: AsyncClient):
+    response = await client.get(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": "Bearer not-a-valid-token"},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

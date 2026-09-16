@@ -35,8 +35,10 @@ class Settings(BaseSettings):
 
     email_verification_token_expire_minutes: int = 60
 
-    # Password reset
+    # Password
 
+    password_min_length: int = 8
+    password_max_length: int = 128
     password_reset_token_expire_minutes: int = 15
 
     # Admin

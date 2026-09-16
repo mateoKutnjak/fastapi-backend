@@ -169,6 +169,48 @@ async def test_google_sign_in_invalid_token_returns_401(client: AsyncClient):
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        make_payload(email=None),
+        make_payload(email_verified=False),
+    ],
+)
+async def test_google_sign_in_rejects_missing_or_unverified_email(
+    client: AsyncClient, payload: dict
+):
+    with patch(
+        "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
+    ):
+        response = await client.post(
+            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+        )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.anyio
+async def test_google_only_user_cannot_login_with_password(client: AsyncClient):
+    payload = make_payload()
+
+    with patch(
+        "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
+    ):
+        google_response = await client.post(
+            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+        )
+
+    assert google_response.status_code == status.HTTP_200_OK
+
+    login_response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={"identifier": payload["email"], "password": "password123"},
+    )
+
+    assert login_response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.anyio
 async def test_google_sign_in_email_case_insensitive_matches_existing_user(
     client: AsyncClient, db_session: AsyncSession, registered_user_with_role
 ):
