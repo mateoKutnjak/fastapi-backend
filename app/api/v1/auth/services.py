@@ -94,7 +94,6 @@ async def verify_refresh_token(
         raise ExpiredTokenError()
 
     await db.delete(refresh_token_record)
-    await db.commit()
 
     new_refresh_token = generate_random_token()
 
@@ -250,7 +249,7 @@ async def verify_email(db: AsyncSession, raw_token: str) -> None:
     await db.commit()
 
 
-async def forgot_password(db: AsyncSession, email: str) -> str:
+async def forgot_password(db: AsyncSession, email: str) -> str | None:
     raw_token = generate_random_token()
 
     token_hash = hash_string(raw_token)
