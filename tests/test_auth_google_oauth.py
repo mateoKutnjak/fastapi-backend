@@ -35,7 +35,7 @@ async def test_google_sign_in_creates_new_user(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -70,7 +70,7 @@ async def test_google_sign_in_links_existing_verified_local_user(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -98,7 +98,7 @@ async def test_google_sign_in_returning_user_reuses_account(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         first = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
     assert first.status_code == status.HTTP_200_OK
 
@@ -106,7 +106,7 @@ async def test_google_sign_in_returning_user_reuses_account(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         second = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
     assert second.status_code == status.HTTP_200_OK
 
@@ -132,7 +132,9 @@ async def test_google_sign_in_updates_email_snapshot_on_provider_email_change(
     with patch(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
-        await client.post(f"{API_VERSION}/auth/google", json={"id_token": "fake-token"})
+        await client.post(
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
+        )
 
     new_payload = {**payload, "email": "changed_" + payload["email"]}
     with patch(
@@ -140,7 +142,7 @@ async def test_google_sign_in_updates_email_snapshot_on_provider_email_change(
         return_value=new_payload,
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -162,7 +164,7 @@ async def test_google_sign_in_invalid_token_returns_401(client: AsyncClient):
         side_effect=ValueError("Token expired"),
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "garbage"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "garbage"}
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -183,7 +185,7 @@ async def test_google_sign_in_rejects_missing_or_unverified_email(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -197,7 +199,7 @@ async def test_google_only_user_cannot_login_with_password(client: AsyncClient):
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         google_response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert google_response.status_code == status.HTTP_200_OK
@@ -226,7 +228,7 @@ async def test_google_sign_in_email_case_insensitive_matches_existing_user(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -256,7 +258,7 @@ async def test_google_sign_in_stores_email_lowercase_on_new_user(
         "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
     ):
         response = await client.post(
-            f"{API_VERSION}/auth/google", json={"id_token": "fake-token"}
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
         )
 
     assert response.status_code == status.HTTP_200_OK
