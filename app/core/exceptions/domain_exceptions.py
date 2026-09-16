@@ -72,3 +72,7 @@ class InvalidCurrentPasswordError(DomainError):
 
 class CurrentUserHasNoPasswordError(DomainError):
     pass
+
+
+class CurrentUserAlreadyHasPasswordError(DomainError):
+    pass

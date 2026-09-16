@@ -28,3 +28,7 @@ class GoogleAuthRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: Password
+
+
+class SetPasswordRequest(BaseModel):
+    new_password: Password

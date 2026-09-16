@@ -15,6 +15,7 @@ from app.api.v1.auth.models import (
 from app.api.v1.auth.schemas import (
     ChangePasswordRequest,
     ResetPasswordRequest,
+    SetPasswordRequest,
     TokenResponse,
 )
 from app.api.v1.users.constants import DEFAULT_ROLE
@@ -30,6 +31,7 @@ from app.config import settings
 from app.core.db import AsyncSession
 from app.core.exceptions.domain_exceptions import (
     AccountLinkingError,
+    CurrentUserAlreadyHasPasswordError,
     CurrentUserHasNoPasswordError,
     ExpiredPasswordResetTokenError,
     ExpiredTokenError,
@@ -320,6 +322,18 @@ async def change_password(
         raise InvalidCurrentPasswordError()
 
     user.password_hash = hash_password(body.new_password)
+
+    # Delete all refresh tokens associated with the user to force re-authentication
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    await db.commit()
+
+
+async def set_password(db: AsyncSession, user: User, body: SetPasswordRequest) -> None:
+    if user.password_hash:
+        raise CurrentUserAlreadyHasPasswordError()
+
+    user.password_hash = hash_password(body.new_password)
+
     # Delete all refresh tokens associated with the user to force re-authentication
     await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await db.commit()

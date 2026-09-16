@@ -11,6 +11,7 @@ from app.api.v1.auth.schemas import (
     GoogleAuthRequest,
     RefreshTokenRequest,
     ResetPasswordRequest,
+    SetPasswordRequest,
     TokenResponse,
 )
 from app.api.v1.users.models import User
@@ -140,3 +141,14 @@ async def change_password(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await services.change_password(db, current_user, body)
+
+
+@router.post(
+    "/set-password", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
+async def set_password(
+    body: Annotated[SetPasswordRequest, Body()],
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await services.set_password(db, current_user, body)
