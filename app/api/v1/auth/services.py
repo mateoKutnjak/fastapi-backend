@@ -291,11 +291,12 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
 
     user = await get_user_by_id(db, token.user_id)
 
-    if not user:
-        raise UserNotFoundError()
-
     user.password_hash = hash_password(body.new_password)
     await db.delete(token)
+
+    # Delete all refresh tokens associated with the user to force re-authentication
+    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+
     await db.commit()
 
 
