@@ -11,6 +11,7 @@ from app.core.db import AsyncSession
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response
 
 
 @pytest.mark.asyncio
@@ -55,11 +56,10 @@ async def test_verify_email_invalid_token(client: AsyncClient):
         params={"token": "not-a-real-token"},
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["error"]["detail"] == ErrorDetail.BAD_REQUEST.value
-    assert data["error"]["code"] == ErrorCode.INVALID_VERIFICATION_TOKEN.value
+    assert_error_response(
+        response, ErrorCode.INVALID_VERIFICATION_TOKEN, ErrorDetail.BAD_REQUEST
+    )
 
 
 @pytest.mark.asyncio
@@ -90,8 +90,7 @@ async def test_verify_email_expired_token(
         params={"token": raw_token},
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["error"]["code"] == ErrorCode.EXPIRED_VERIFICATION_TOKEN.value
-    assert data["error"]["detail"] == ErrorDetail.BAD_REQUEST.value
+    assert_error_response(
+        response, ErrorCode.EXPIRED_VERIFICATION_TOKEN, ErrorDetail.BAD_REQUEST
+    )

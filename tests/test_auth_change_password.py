@@ -6,8 +6,9 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.config import settings
-from app.core.exceptions.error_codes import ErrorDetail
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response, assert_validation_response
 
 
 def make_google_payload() -> dict:
@@ -43,6 +44,9 @@ async def test_change_password_success_invalidates_old_credentials_and_session(
         json={"identifier": user["email"], "password": user["password"]},
     )
     assert old_login.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        old_login, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
     new_login = await client.post(
         f"{API_VERSION}/auth/login",
@@ -55,6 +59,9 @@ async def test_change_password_success_invalidates_old_credentials_and_session(
         json={"refresh_token": user["refresh_token"]},
     )
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -73,7 +80,9 @@ async def test_change_password_wrong_current_password_returns_401(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CURRENT_PASSWORD, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -87,6 +96,9 @@ async def test_change_password_requires_authentication(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -110,6 +122,7 @@ async def test_change_password_missing_field_returns_422(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
 
 
 @pytest.mark.anyio
@@ -137,6 +150,7 @@ async def test_change_password_rejects_password_outside_policy(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
 
 
 @pytest.mark.anyio
@@ -165,4 +179,6 @@ async def test_oauth_only_user_cannot_change_password(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.CURRENT_USER_HAS_NO_PASSWORD, ErrorDetail.UNAUTHORIZED
+    )

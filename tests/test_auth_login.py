@@ -2,9 +2,10 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
-from app.core.exceptions.error_codes import ErrorDetail
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import create_access_token
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response
 
 
 @pytest.mark.asyncio
@@ -21,10 +22,10 @@ async def test_login_token_user_with_email_invalid_credentials(
         },
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -41,10 +42,10 @@ async def test_login_token_user_with_username_invalid_credentials(
         },
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -98,7 +99,9 @@ async def test_login_token_non_existing_user(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -115,10 +118,10 @@ async def test_login_body_user_with_email_invalid_credentials(
         },
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -135,10 +138,10 @@ async def test_login_body_user_with_username_invalid_credentials(
         },
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -192,7 +195,9 @@ async def test_login_body_non_existing_user(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -208,11 +213,10 @@ async def test_expired_access_token(
         headers={"Authorization": f"Bearer {expired_access_token}"},
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -223,3 +227,6 @@ async def test_malformed_access_token(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )

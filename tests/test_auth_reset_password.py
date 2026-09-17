@@ -12,6 +12,7 @@ from app.core.db import AsyncSession
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response, assert_validation_response
 
 
 @pytest.mark.asyncio
@@ -36,6 +37,9 @@ async def test_reset_password_success_changes_password_and_consumes_token(
         json={"identifier": user["email"], "password": user["password"]},
     )
     assert old_password_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        old_password_response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
     new_password_response = await client.post(
         f"{API_VERSION}/auth/login",
@@ -48,6 +52,9 @@ async def test_reset_password_success_changes_password_and_consumes_token(
         json={"refresh_token": user["refresh_token"]},
     )
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
     token_row = await db_session.scalar(
         select(ForgotPasswordToken).where(
@@ -64,12 +71,10 @@ async def test_reset_password_invalid_token_returns_401(client: AsyncClient):
         json={"token": "not-a-real-token", "new_password": "newpassword123"},
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
-    assert data["error"]["code"] == ErrorCode.INVALID_PASSWORD_RESET_TOKEN.value
+    assert_error_response(
+        response, ErrorCode.INVALID_PASSWORD_RESET_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -96,12 +101,10 @@ async def test_reset_password_expired_token_returns_401(
         json={"token": raw_token, "new_password": "newpassword123"},
     )
 
-    data = response.json()
-
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
-    assert data["error"]["code"] == ErrorCode.EXPIRED_PASSWORD_RESET_TOKEN.value
+    assert_error_response(
+        response, ErrorCode.EXPIRED_PASSWORD_RESET_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -123,11 +126,13 @@ async def test_reset_password_token_can_only_be_used_once(
         f"{API_VERSION}/auth/reset-password",
         json={"token": raw_token, "new_password": "anotherpassword123"},
     )
-    data = second_response.json()
 
     assert second_response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
-    assert data["error"]["code"] == ErrorCode.INVALID_PASSWORD_RESET_TOKEN.value
+    assert_error_response(
+        second_response,
+        ErrorCode.INVALID_PASSWORD_RESET_TOKEN,
+        ErrorDetail.UNAUTHORIZED,
+    )
 
 
 @pytest.mark.asyncio
@@ -138,6 +143,7 @@ async def test_reset_password_missing_field_returns_422(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
 
 
 @pytest.mark.asyncio
@@ -163,4 +169,5 @@ async def test_reset_password_rejects_password_outside_policy(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
     assert "new_password" in response.text

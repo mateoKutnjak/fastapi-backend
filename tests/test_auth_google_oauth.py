@@ -10,7 +10,9 @@ from app.api.v1.auth.models import OAuthAccount
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import Role, User
 from app.core.db import AsyncSession
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response
 
 
 def make_payload(**overrides) -> dict:
@@ -168,6 +170,9 @@ async def test_google_sign_in_invalid_token_returns_401(client: AsyncClient):
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.INVALID_OAUTH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -189,6 +194,12 @@ async def test_google_sign_in_rejects_missing_or_unverified_email(
         )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    expected_code = (
+        ErrorCode.OAUTH_EMAIL_NOT_PROVIDED
+        if payload["email"] is None
+        else ErrorCode.OAUTH_EMAIL_NOT_VERIFIED
+    )
+    assert_error_response(response, expected_code, ErrorDetail.UNAUTHORIZED)
 
 
 @pytest.mark.anyio
@@ -210,6 +221,9 @@ async def test_google_only_user_cannot_login_with_password(client: AsyncClient):
     )
 
     assert login_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        login_response, ErrorCode.INVALID_CREDENTIALS, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio

@@ -6,7 +6,9 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.config import settings
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response, assert_validation_response
 
 
 def make_google_payload() -> dict:
@@ -82,6 +84,9 @@ async def test_set_password_revokes_existing_oauth_refresh_token(
     )
 
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -110,6 +115,11 @@ async def test_set_password_cannot_be_used_twice(
     )
 
     assert second_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        second_response,
+        ErrorCode.CURRENT_USER_ALREADY_HAS_PASSWORD,
+        ErrorDetail.UNAUTHORIZED,
+    )
 
 
 @pytest.mark.anyio
@@ -125,6 +135,9 @@ async def test_password_user_cannot_use_set_password(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.CURRENT_USER_ALREADY_HAS_PASSWORD, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -135,6 +148,9 @@ async def test_set_password_requires_authentication(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -148,6 +164,7 @@ async def test_set_password_missing_field_returns_422(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
 
 
 @pytest.mark.anyio
@@ -171,3 +188,4 @@ async def test_set_password_rejects_password_outside_policy(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)

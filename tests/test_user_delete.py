@@ -16,7 +16,9 @@ from app.api.v1.auth.models import (
 from app.api.v1.auth.services import create_refresh_token, forgot_password
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import User
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response, assert_validation_response
 
 
 @pytest.mark.anyio
@@ -41,12 +43,18 @@ async def test_delete_me_removes_own_account(
 async def test_delete_me_requires_authentication(client: AsyncClient):
     response = await client.delete(f"{API_VERSION}/users/me")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
 async def test_delete_user_requires_authentication(client: AsyncClient):
     response = await client.delete(f"{API_VERSION}/users/{uuid.uuid4()}")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.anyio
@@ -258,6 +266,12 @@ async def test_delete_nonexistent_user_returns_404(
     )
 
     assert response.status_code == expected_status
+    if expected_status == status.HTTP_403_FORBIDDEN:
+        assert_error_response(
+            response, ErrorCode.PERMISSION_DENIED, ErrorDetail.FORBIDDEN
+        )
+    elif expected_status == status.HTTP_404_NOT_FOUND:
+        assert_error_response(response, ErrorCode.USER_NOT_FOUND, ErrorDetail.NOT_FOUND)
 
 
 @pytest.mark.anyio
@@ -280,3 +294,9 @@ async def test_delete_user_invalid_uuid_returns_422(
     )
 
     assert response.status_code == expected_status
+    if expected_status == status.HTTP_403_FORBIDDEN:
+        assert_error_response(
+            response, ErrorCode.PERMISSION_DENIED, ErrorDetail.FORBIDDEN
+        )
+    elif expected_status == status.HTTP_422_UNPROCESSABLE_CONTENT:
+        assert_validation_response(response)

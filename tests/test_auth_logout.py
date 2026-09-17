@@ -8,9 +8,10 @@ from sqlalchemy import select
 from app.api.v1.auth.models import RefreshToken
 from app.api.v1.auth.services import create_refresh_token
 from app.core.db import AsyncSession
-from app.core.exceptions.error_codes import ErrorDetail
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
+from tests.error_assertions import assert_error_response, assert_validation_response
 
 
 @pytest.mark.asyncio
@@ -60,10 +61,11 @@ async def test_logout_makes_refresh_token_unusable(
         f"{API_VERSION}/auth/refresh",
         json={"refresh_token": user["refresh_token"]},
     )
-    data = refresh_response.json()
 
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert_error_response(
+        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -81,6 +83,7 @@ async def test_logout_missing_field_returns_422(client: AsyncClient):
     response = await client.post(f"{API_VERSION}/auth/logout", json={})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert_validation_response(response)
 
 
 @pytest.mark.asyncio
@@ -88,6 +91,9 @@ async def test_logout_all_requires_authentication(client: AsyncClient):
     response = await client.post(f"{API_VERSION}/auth/logout-all")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+    )
 
 
 @pytest.mark.asyncio
@@ -119,6 +125,9 @@ async def test_logout_all_revokes_every_session(
             json={"refresh_token": token},
         )
         assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert_error_response(
+            refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+        )
 
 
 @pytest.mark.asyncio
