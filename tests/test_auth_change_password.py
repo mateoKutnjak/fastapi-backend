@@ -6,6 +6,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.config import settings
+from app.core.exceptions.error_codes import ErrorDetail
 from tests.conftest import API_VERSION
 
 
@@ -72,7 +73,7 @@ async def test_change_password_wrong_current_password_returns_401(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == "Unauthorized"
+    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.anyio
@@ -164,4 +165,4 @@ async def test_oauth_only_user_cannot_change_password(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == "Unauthorized"
+    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value

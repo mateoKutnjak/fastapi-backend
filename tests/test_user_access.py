@@ -4,6 +4,7 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from app.core.exceptions.error_codes import ErrorDetail
 from tests.conftest import API_VERSION
 
 
@@ -31,10 +32,10 @@ async def test_get_user_by_non_existing_uuid(
     assert response.status_code == expected_status
     if expected_status == status.HTTP_404_NOT_FOUND:
         assert data["error"]["status_code"] == status.HTTP_404_NOT_FOUND
-        assert data["error"]["detail"] == "Not found"
+        assert data["error"]["detail"] == ErrorDetail.NOT_FOUND.value
     elif expected_status == status.HTTP_403_FORBIDDEN:
         assert data["error"]["status_code"] == status.HTTP_403_FORBIDDEN
-        assert data["error"]["detail"] == "Forbidden"
+        assert data["error"]["detail"] == ErrorDetail.FORBIDDEN.value
 
 
 @pytest.mark.asyncio
@@ -63,7 +64,7 @@ async def test_get_me_unauthorized(client: AsyncClient):
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio

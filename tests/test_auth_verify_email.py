@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.api.v1.auth.models import EmailVerificationToken
 from app.api.v1.users.models import User
 from app.core.db import AsyncSession
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
 
@@ -57,7 +58,8 @@ async def test_verify_email_invalid_token(client: AsyncClient):
     data = response.json()
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["error"]["detail"] == "Invalid verification token"
+    assert data["error"]["detail"] == ErrorDetail.BAD_REQUEST.value
+    assert data["error"]["code"] == ErrorCode.INVALID_VERIFICATION_TOKEN.value
 
 
 @pytest.mark.asyncio
@@ -91,4 +93,5 @@ async def test_verify_email_expired_token(
     data = response.json()
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert data["error"]["detail"] == "Expired verification token"
+    assert data["error"]["code"] == ErrorCode.EXPIRED_VERIFICATION_TOKEN.value
+    assert data["error"]["detail"] == ErrorDetail.BAD_REQUEST.value

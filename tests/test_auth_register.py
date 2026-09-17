@@ -3,6 +3,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.config import settings
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from tests.conftest import API_VERSION
 
 
@@ -39,8 +40,8 @@ async def test_register_user_duplicate_email(
 
     assert response.status_code == status.HTTP_409_CONFLICT
     assert data["error"]["status_code"] == status.HTTP_409_CONFLICT
-    assert data["error"]["detail"] == "Conflict"
-    assert data["error"]["fields"]["email"] == "Email already exists"
+    assert data["error"]["detail"] == ErrorDetail.CONFLICT.value
+    assert data["error"]["fields"]["email"] == ErrorCode.EMAIL_ALREADY_EXISTS.value
 
 
 @pytest.mark.asyncio
@@ -62,9 +63,11 @@ async def test_register_user_duplicate_username(
 
     assert response.status_code == status.HTTP_409_CONFLICT
     assert data["error"]["status_code"] == status.HTTP_409_CONFLICT
-    assert data["error"]["detail"] == "Conflict"
+    assert data["error"]["detail"] == ErrorDetail.CONFLICT.value
     assert len(data["error"]["fields"]) == 1
-    assert data["error"]["fields"]["username"] == "Username already exists"
+    assert (
+        data["error"]["fields"]["username"] == ErrorCode.USERNAME_ALREADY_EXISTS.value
+    )
 
 
 @pytest.mark.asyncio

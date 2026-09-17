@@ -1,78 +1,93 @@
+from app.core.exceptions.error_codes import ErrorCode
+
+
 class DomainError(Exception):
-    pass
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR
 
 
 class UserNotFoundError(DomainError):
-    pass
+    code = ErrorCode.USER_NOT_FOUND
 
 
 class InvalidCredentialsError(DomainError):
-    pass
+    code = ErrorCode.INVALID_CREDENTIALS
 
 
 class InvalidRefreshTokenError(DomainError):
-    pass
+    code = ErrorCode.INVALID_REFRESH_TOKEN
 
 
 class ValidationError(DomainError):
+    code = ErrorCode.VALIDATION_ERROR
+
     def __init__(self, fields: dict[str, str]):
         self.fields = fields
         super().__init__(self.fields)
 
 
 class InvalidTokenError(DomainError):
-    pass
+    code = ErrorCode.INVALID_TOKEN
 
 
 class ExpiredTokenError(DomainError):
-    pass
+    code = ErrorCode.EXPIRED_TOKEN
 
 
 class InvalidVerificationTokenError(DomainError):
-    pass
+    code = ErrorCode.INVALID_VERIFICATION_TOKEN
 
 
 class ExpiredVerificationTokenError(DomainError):
-    pass
+    code = ErrorCode.EXPIRED_VERIFICATION_TOKEN
 
 
 class AccountLinkingError(DomainError):
-    pass
+    code = ErrorCode.ACCOUNT_LINKING_ERROR
 
 
 class InvalidOAuthTokenError(DomainError):
-    pass
+    code = ErrorCode.INVALID_OAUTH_TOKEN
 
 
 class RoleNotFoundError(DomainError):
+    code = ErrorCode.ROLE_NOT_FOUND
+
     def __init__(self, name: str):
         self.name = name
         super().__init__(f"Role not found: {self.name}")
 
 
 class InvalidPasswordResetTokenError(DomainError):
-    pass
+    code = ErrorCode.INVALID_PASSWORD_RESET_TOKEN
 
 
 class ExpiredPasswordResetTokenError(DomainError):
-    pass
+    code = ErrorCode.EXPIRED_PASSWORD_RESET_TOKEN
 
 
 class OAuthEmailNotProvidedError(DomainError):
-    pass
+    code = ErrorCode.OAUTH_EMAIL_NOT_PROVIDED
 
 
 class OAuthEmailNotVerifiedError(DomainError):
-    pass
+    code = ErrorCode.OAUTH_EMAIL_NOT_VERIFIED
 
 
 class InvalidCurrentPasswordError(DomainError):
-    pass
+    code = ErrorCode.INVALID_CURRENT_PASSWORD
 
 
 class CurrentUserHasNoPasswordError(DomainError):
-    pass
+    code = ErrorCode.CURRENT_USER_HAS_NO_PASSWORD
 
 
 class CurrentUserAlreadyHasPasswordError(DomainError):
-    pass
+    code = ErrorCode.CURRENT_USER_ALREADY_HAS_PASSWORD
+
+
+class AuthenticationFailedError(DomainError):
+    code = ErrorCode.AUTHENTICATION_FAILED
+
+
+class PermissionDeniedError(DomainError):
+    code = ErrorCode.PERMISSION_DENIED

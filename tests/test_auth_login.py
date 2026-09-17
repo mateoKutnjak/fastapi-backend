@@ -2,6 +2,7 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from app.core.exceptions.error_codes import ErrorDetail
 from app.core.security import create_access_token
 from tests.conftest import API_VERSION
 
@@ -23,7 +24,7 @@ async def test_login_token_user_with_email_invalid_credentials(
     data = response.json()
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -43,7 +44,7 @@ async def test_login_token_user_with_username_invalid_credentials(
     data = response.json()
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -97,7 +98,7 @@ async def test_login_token_non_existing_user(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == "Unauthorized"
+    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -117,7 +118,7 @@ async def test_login_body_user_with_email_invalid_credentials(
     data = response.json()
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -137,7 +138,7 @@ async def test_login_body_user_with_username_invalid_credentials(
     data = response.json()
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -191,7 +192,7 @@ async def test_login_body_non_existing_user(
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert response.json()["error"]["detail"] == "Unauthorized"
+    assert response.json()["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -211,7 +212,7 @@ async def test_expired_access_token(
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED
 
 
 @pytest.mark.asyncio

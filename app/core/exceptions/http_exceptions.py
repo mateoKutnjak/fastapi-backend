@@ -1,9 +1,12 @@
 from fastapi import HTTPException, status
 
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
+
 
 class AppException(HTTPException):
     status_code: int = status.HTTP_401_UNAUTHORIZED
-    detail: str = "Internal server error"
+    detail: str = ErrorDetail.INTERNAL_ERROR.value
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR
 
     def __init__(self, detail: str | None = None):
         super().__init__(
@@ -12,64 +15,34 @@ class AppException(HTTPException):
         )
 
     def to_response(self):
-        return {"error": {"code": self.status_code, "detail": self.detail}}
+        return {"error": {"code": self.code, "detail": self.detail}}
 
 
 class BadRequestException(AppException):
     status_code: int = status.HTTP_400_BAD_REQUEST
-    detail: str = "Bad request"
+    detail: str = ErrorDetail.BAD_REQUEST.value
+    code: ErrorCode = ErrorCode.BAD_REQUEST
 
 
 class UnauthorizedException(AppException):
     status_code: int = status.HTTP_401_UNAUTHORIZED
-    detail: str = "Unauthorized"
+    detail: str = ErrorDetail.UNAUTHORIZED.value
+    code: ErrorCode = ErrorCode.UNAUTHORIZED
 
 
 class ForbiddenException(AppException):
     status_code: int = status.HTTP_403_FORBIDDEN
-    detail: str = "Forbidden"
+    detail: str = ErrorDetail.FORBIDDEN.value
+    code: ErrorCode = ErrorCode.FORBIDDEN
 
 
 class NotFoundException(AppException):
     status_code: int = status.HTTP_404_NOT_FOUND
-    detail: str = "Not found"
+    detail: str = ErrorDetail.NOT_FOUND.value
+    code: ErrorCode = ErrorCode.NOT_FOUND
 
 
 class ConflictException(AppException):
     status_code: int = status.HTTP_409_CONFLICT
-    detail: str = "Conflict"
-
-
-class FieldConflictException(ConflictException):
-    def __init__(self, detail: str, fields: list[dict[str, str]]):
-        super().__init__(detail=detail)
-        self.fields = fields
-
-    def to_response(self):
-        return {
-            "error": {
-                "code": self.__class__.status_code,
-                "fields": self.fields,
-                "detail": self.detail,
-            }
-        }
-
-
-class InvalidVerificationTokenException(AppException):
-    status_code: int = status.HTTP_400_BAD_REQUEST
-    detail: str = "Invalid verification token"
-
-
-class ExpiredVerificationTokenException(AppException):
-    status_code: int = status.HTTP_400_BAD_REQUEST
-    detail: str = "Expired verification token"
-
-
-class InvalidResetPasswordTokenException(AppException):
-    status_code: int = status.HTTP_401_UNAUTHORIZED
-    detail: str = "Invalid reset password token"
-
-
-class ExpiredResetPasswordTokenException(AppException):
-    status_code: int = status.HTTP_401_UNAUTHORIZED
-    detail: str = "Expired reset password token"
+    detail: str = ErrorDetail.CONFLICT.value
+    code: ErrorCode = ErrorCode.CONFLICT

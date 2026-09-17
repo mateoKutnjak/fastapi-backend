@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.api.v1.auth.models import RefreshToken
 from app.api.v1.auth.services import create_refresh_token
 from app.core.db import AsyncSession
+from app.core.exceptions.error_codes import ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
 
@@ -62,7 +63,7 @@ async def test_logout_makes_refresh_token_unusable(
     data = refresh_response.json()
 
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio

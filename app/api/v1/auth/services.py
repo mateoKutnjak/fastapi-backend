@@ -49,6 +49,7 @@ from app.core.exceptions.domain_exceptions import (
     UserNotFoundError,
     ValidationError,
 )
+from app.core.exceptions.error_codes import ErrorCode
 from app.core.security import (
     create_access_token,
     generate_random_token,
@@ -145,14 +146,16 @@ async def register_user(
 
     try:
         if await get_user_by_email(db, body.email):
-            conflict_fields.update({"email": "Email already exists"})
+            conflict_fields.update({"email": ErrorCode.EMAIL_ALREADY_EXISTS.value})
 
     except UserNotFoundError:
         pass
 
     try:
         if await get_user_by_username(db, body.username):
-            conflict_fields.update({"username": "Username already exists"})
+            conflict_fields.update(
+                {"username": ErrorCode.USERNAME_ALREADY_EXISTS.value}
+            )
 
     except UserNotFoundError:
         pass

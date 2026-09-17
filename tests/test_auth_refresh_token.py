@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.api.v1.auth.models import RefreshToken
 from app.api.v1.auth.services import create_refresh_token
 from app.core.db import AsyncSession
+from app.core.exceptions.error_codes import ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
 
@@ -42,7 +43,7 @@ async def test_refresh_token_invalid_token(client: AsyncClient):
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -66,7 +67,7 @@ async def test_refresh_token_expired_token(
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
 
 @pytest.mark.asyncio
@@ -99,7 +100,7 @@ async def test_refresh_token_rotates_and_invalidates_old_token(
     data = reuse_response.json()
 
     assert reuse_response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Unauthorized"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
 
     # The newly issued refresh token should still work
     second_response = await client.post(

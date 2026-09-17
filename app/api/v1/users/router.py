@@ -9,8 +9,6 @@ from app.api.v1.users import services
 from app.api.v1.users.models import User
 from app.api.v1.users.schemas import UserResponsePrivate
 from app.core.db import get_db
-from app.core.exceptions.domain_exceptions import UserNotFoundError
-from app.core.exceptions.http_exceptions import NotFoundException
 
 router = APIRouter()
 
@@ -26,10 +24,7 @@ async def get_user(
     current_user: Annotated[User, Depends(require_permission("users:read"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    try:
-        return await services.get_user_by_id(db, user_id)
-    except UserNotFoundError as e:
-        raise NotFoundException() from e
+    return await services.get_user_by_id(db, user_id)
 
 
 @router.get("/", response_model=list[UserResponsePrivate])
@@ -45,10 +40,7 @@ async def delete_me(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    try:
-        await services.delete_user_by_id(db, current_user.id)
-    except UserNotFoundError as e:
-        raise NotFoundException() from e
+    await services.delete_user_by_id(db, current_user.id)
 
 
 @router.delete(
@@ -59,7 +51,4 @@ async def delete_user(
     current_user: Annotated[User, Depends(require_permission("users:delete"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    try:
-        await services.delete_user_by_id(db, user_id)
-    except UserNotFoundError as e:
-        raise NotFoundException() from e
+    await services.delete_user_by_id(db, user_id)

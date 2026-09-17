@@ -9,6 +9,7 @@ from app.api.v1.auth.models import ForgotPasswordToken
 from app.api.v1.auth.services import forgot_password
 from app.config import settings
 from app.core.db import AsyncSession
+from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.security import hash_string
 from tests.conftest import API_VERSION
 
@@ -67,7 +68,8 @@ async def test_reset_password_invalid_token_returns_401(client: AsyncClient):
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Invalid reset password token"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert data["error"]["code"] == ErrorCode.INVALID_PASSWORD_RESET_TOKEN.value
 
 
 @pytest.mark.asyncio
@@ -98,7 +100,8 @@ async def test_reset_password_expired_token_returns_401(
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert data["error"]["status_code"] == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Expired reset password token"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert data["error"]["code"] == ErrorCode.EXPIRED_PASSWORD_RESET_TOKEN.value
 
 
 @pytest.mark.asyncio
@@ -123,7 +126,8 @@ async def test_reset_password_token_can_only_be_used_once(
     data = second_response.json()
 
     assert second_response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert data["error"]["detail"] == "Invalid reset password token"
+    assert data["error"]["detail"] == ErrorDetail.UNAUTHORIZED.value
+    assert data["error"]["code"] == ErrorCode.INVALID_PASSWORD_RESET_TOKEN.value
 
 
 @pytest.mark.asyncio
