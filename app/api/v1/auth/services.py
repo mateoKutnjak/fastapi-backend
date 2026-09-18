@@ -31,6 +31,7 @@ from app.config import settings
 from app.core.db import AsyncSession
 from app.core.exceptions.domain_exceptions import (
     AccountLinkingError,
+    ConflictError,
     CurrentUserAlreadyHasPasswordError,
     CurrentUserHasNoPasswordError,
     ExpiredPasswordResetTokenError,
@@ -47,7 +48,6 @@ from app.core.exceptions.domain_exceptions import (
     OAuthEmailNotVerifiedError,
     RoleNotFoundError,
     UserNotFoundError,
-    ValidationError,
 )
 from app.core.exceptions.error_codes import ErrorCode
 from app.core.security import (
@@ -161,7 +161,7 @@ async def register_user(
         pass
 
     if conflict_fields:
-        raise ValidationError(conflict_fields)
+        raise ConflictError(conflict_fields)
 
     user = await create_user(db, body)
 

@@ -1,8 +1,10 @@
 from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions.domain_exceptions import (
     AuthenticationFailedError,
+    ConflictError,
     CurrentUserAlreadyHasPasswordError,
     CurrentUserHasNoPasswordError,
     DomainError,
@@ -18,7 +20,6 @@ from app.core.exceptions.domain_exceptions import (
     OAuthEmailNotVerifiedError,
     PermissionDeniedError,
     UserNotFoundError,
-    ValidationError,
 )
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
 from app.core.exceptions.http_exceptions import (
@@ -34,7 +35,7 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     UserNotFoundError: NotFoundException,
     InvalidCredentialsError: UnauthorizedException,
     InvalidRefreshTokenError: UnauthorizedException,
-    ValidationError: ConflictException,
+    ConflictError: ConflictException,
     InvalidVerificationTokenError: BadRequestException,
     ExpiredVerificationTokenError: BadRequestException,
     InvalidOAuthTokenError: UnauthorizedException,
@@ -71,6 +72,48 @@ async def domain_exception_handler(request: Request, exc: DomainError) -> JSONRe
                 "status_code": status_code,
                 "code": code,
                 "fields": getattr(exc, "fields", None),
+            }
+        },
+    )
+
+
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """
+    Validation exception handler.
+    This handler is responsible for catching validation errors raised by FastAPI
+    when the request data does not conform to the expected schema. It restructures
+    the error response to include details about the validation failure, the
+    HTTP status code, and the specific fields that caused the error.
+
+    Parameters:
+        request (Request): The incoming HTTP request.
+        exc (RequestValidationError): The validation error that occurred.
+
+    Returns:
+        JSONResponse: The JSON response containing validation error details.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    detail = ErrorDetail.VALIDATION_ERROR.value
+    code = ErrorCode.VALIDATION_ERROR
+
+    fields = {}
+
+    for item in exc.errors():
+        fields_key = item.get("loc")[-1] if item.get("loc") else None
+        if fields_key:
+            fields[fields_key] = item.get("type")
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": {
+                "detail": detail,
+                "status_code": status_code,
+                "code": code,
+                "fields": fields,
             }
         },
     )

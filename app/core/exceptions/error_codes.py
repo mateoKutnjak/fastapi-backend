@@ -15,7 +15,7 @@ class ErrorCode(StrEnum):
     USER_NOT_FOUND = "user_not_found"
     INVALID_CREDENTIALS = "invalid_credentials"
     INVALID_REFRESH_TOKEN = "invalid_refresh_token"  # noqa: S105
-    VALIDATION_ERROR = "validation_error"
+    CONFLICT_ERROR = "conflict_error"
     INVALID_TOKEN = "invalid_token"  # noqa: S105
     EXPIRED_TOKEN = "expired_token"  # noqa: S105
     INVALID_VERIFICATION_TOKEN = "invalid_verification_token"  # noqa: S105
@@ -32,6 +32,7 @@ class ErrorCode(StrEnum):
     CURRENT_USER_ALREADY_HAS_PASSWORD = "current_user_already_has_password"  # noqa: S105
     AUTHENTICATION_FAILED = "authentication_failed"
     PERMISSION_DENIED = "permission_denied"
+    VALIDATION_ERROR = "validation_error"
 
     # Conflict-level codes
     USERNAME_ALREADY_EXISTS = "username_already_exists"
@@ -45,3 +46,4 @@ class ErrorDetail(StrEnum):
     FORBIDDEN = "Forbidden"
     NOT_FOUND = "Not found"
     CONFLICT = "Conflict"
+    VALIDATION_ERROR = "Validation error"

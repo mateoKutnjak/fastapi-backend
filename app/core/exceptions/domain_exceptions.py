@@ -17,8 +17,8 @@ class InvalidRefreshTokenError(DomainError):
     code = ErrorCode.INVALID_REFRESH_TOKEN
 
 
-class ValidationError(DomainError):
-    code = ErrorCode.VALIDATION_ERROR
+class ConflictError(DomainError):
+    code = ErrorCode.CONFLICT_ERROR
 
     def __init__(self, fields: dict[str, str]):
         self.fields = fields

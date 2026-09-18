@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from sqladmin import Admin
 
 from app.admin import (
@@ -17,7 +18,10 @@ from app.api.v1.router import router as v1_router
 from app.config import settings
 from app.core.db import engine
 from app.core.exceptions.domain_exceptions import DomainError
-from app.core.exceptions.handlers import domain_exception_handler
+from app.core.exceptions.handlers import (
+    domain_exception_handler,
+    validation_exception_handler,
+)
 
 
 @asynccontextmanager
@@ -31,6 +35,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, swagger_ui_parameters={"persistAuthorization": True})
 
 app.add_exception_handler(DomainError, domain_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(v1_router, prefix="/api")
 

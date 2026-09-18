@@ -18,9 +18,7 @@ async def test_register_user_validation_error(client: AsyncClient):
         },
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response)
-    assert "email" in response.text
-    assert "password" in response.text
+    assert_validation_response(response, {"password": "missing"})
 
 
 @pytest.mark.asyncio
@@ -43,7 +41,7 @@ async def test_register_user_duplicate_email(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert_error_response(
         response,
-        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.CONFLICT_ERROR,
         ErrorDetail.CONFLICT,
         fields={"email": ErrorCode.EMAIL_ALREADY_EXISTS.value},
     )
@@ -70,7 +68,7 @@ async def test_register_user_duplicate_username(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert_error_response(
         response,
-        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.CONFLICT_ERROR,
         ErrorDetail.CONFLICT,
         fields={"username": ErrorCode.USERNAME_ALREADY_EXISTS.value},
     )
@@ -117,8 +115,14 @@ async def test_register_user_rejects_password_outside_policy(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response)
-    assert "password" in response.text
+    assert_validation_response(
+        response,
+        {
+            "password": "string_too_short"
+            if len(password) < settings.password_min_length
+            else "string_too_long"
+        },
+    )
 
 
 @pytest.mark.asyncio
@@ -137,7 +141,7 @@ async def test_register_reports_both_conflicting_fields(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert_error_response(
         response,
-        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.CONFLICT_ERROR,
         ErrorDetail.CONFLICT,
         fields={
             "email": ErrorCode.EMAIL_ALREADY_EXISTS.value,

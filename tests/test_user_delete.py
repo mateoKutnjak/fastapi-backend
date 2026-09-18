@@ -299,4 +299,4 @@ async def test_delete_user_invalid_uuid_returns_422(
             response, ErrorCode.PERMISSION_DENIED, ErrorDetail.FORBIDDEN
         )
     elif expected_status == status.HTTP_422_UNPROCESSABLE_CONTENT:
-        assert_validation_response(response)
+        assert_validation_response(response, {"user_id": "uuid_parsing"})

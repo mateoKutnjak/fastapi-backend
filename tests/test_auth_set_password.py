@@ -164,7 +164,7 @@ async def test_set_password_missing_field_returns_422(client: AsyncClient):
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response)
+    assert_validation_response(response, {"new_password": "missing"})
 
 
 @pytest.mark.anyio
@@ -188,4 +188,11 @@ async def test_set_password_rejects_password_outside_policy(
     )
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response)
+    assert_validation_response(
+        response,
+        {
+            "new_password": "string_too_short"
+            if len(new_password) < settings.password_min_length
+            else "string_too_long"
+        },
+    )

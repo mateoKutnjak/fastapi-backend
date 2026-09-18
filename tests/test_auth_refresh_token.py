@@ -75,7 +75,7 @@ async def test_refresh_token_missing_field(client: AsyncClient):
     response = await client.post(f"{API_VERSION}/auth/refresh", json={})
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response)
+    assert_validation_response(response, {"refresh_token": "missing"})
 
 
 @pytest.mark.asyncio
