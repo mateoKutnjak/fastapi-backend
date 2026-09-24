@@ -1,27 +1,23 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Header, Request
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
-from app.api.v1.users.models import Role, User
+from app.api.v1.auth.authentication import UserContext, authenticate_access_token
+from app.api.v1.auth.schemas import SessionMetadata
 from app.core.db import AsyncSession, get_db
 from app.core.exceptions.domain_exceptions import (
     AuthenticationFailedError,
-    ExpiredTokenError,
-    InvalidTokenError,
     PermissionDeniedError,
 )
-from app.core.security import verify_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 
-async def get_current_user(
+async def get_current_user_context(
     token: Annotated[str | None, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> User:
+) -> UserContext:
     # * Override the default behavior of OAuth2PasswordBearer to not raise an exception
     # * if no token is provided. Without this line the 401 exception would be raised
     # * with {"details": "Not authenticated"}.
@@ -29,38 +25,36 @@ async def get_current_user(
     if token is None:
         raise AuthenticationFailedError()
 
-    try:
-        user_id = verify_access_token(token)
-    except (InvalidTokenError, ExpiredTokenError) as e:
-        # * We catch the exception which has a message and status code and
-        # * raise a new one to avoid exposing the message to potentinal attackers.
-        raise AuthenticationFailedError() from e
-
-    # * Fetch role with user
-    result = await db.execute(
-        select(User)
-        .options(selectinload(User.role).selectinload(Role.permissions))
-        .where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        raise AuthenticationFailedError()
-
-    return user
+    return await authenticate_access_token(db, token)
 
 
 def require_permission(permission: str):
     async def permission_dependency(
-        current_user: Annotated[User, Depends(get_current_user)],
-    ) -> User:
-        permissions = [perm.name for perm in current_user.role.permissions]
+        user_context: Annotated[UserContext, Depends(get_current_user_context)],
+    ) -> UserContext:
+        permissions = [perm.name for perm in user_context.user.role.permissions]
 
         if permission not in permissions:
             raise PermissionDeniedError()
-        return current_user
+        return user_context
 
     return permission_dependency
 
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+def get_session_metadata(
+    request: Request,
+    device_name: Annotated[
+        str | None, Header(alias="X-Device-Name", max_length=255)
+    ] = None,
+    device_id: Annotated[
+        str | None, Header(alias="X-Device-ID", max_length=255)
+    ] = None,
+) -> SessionMetadata:
+    user_agent = request.headers.get("user-agent")
+
+    return SessionMetadata(
+        device_name=device_name,
+        device_id=device_id,
+        user_agent=user_agent[:512] if user_agent else None,
+        ip_address=request.client.host if request.client else None,
+    )

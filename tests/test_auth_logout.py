@@ -5,44 +5,53 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.api.v1.auth.models import RefreshToken
+from app.api.v1.auth.models import Session
+from app.api.v1.auth.schemas import SessionMetadata
 from app.api.v1.auth.services import create_refresh_token
 from app.core.db import AsyncSession
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
-from app.core.security import hash_string
+from app.core.security import create_access_token, hash_string
 from tests.conftest import API_VERSION
-from tests.error_assertions import assert_error_response, assert_validation_response
+from tests.error_assertions import assert_error_response
 
 
 @pytest.mark.asyncio
-async def test_logout_revokes_only_the_given_refresh_token(
+async def test_logout_revokes_only_current_session(
     client: AsyncClient, db_session: AsyncSession, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
 
-    other_refresh_token = await create_refresh_token(db_session, user["id"], 60)
+    other_refresh_token, _ = await create_refresh_token(
+        db_session, uuid.UUID(user["id"]), SessionMetadata(), 60, 120
+    )
 
     response = await client.post(
         f"{API_VERSION}/auth/logout",
-        json={"refresh_token": user["refresh_token"]},
+        headers={"Authorization": f"Bearer {user['access_token']}"},
     )
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     revoked = await db_session.scalar(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == hash_string(user["refresh_token"])
+        select(Session).where(
+            Session.refresh_token_hash == hash_string(user["refresh_token"])
         )
     )
-    assert revoked is None
+    assert revoked is not None
+    assert revoked.revoked_at is not None
 
     # the other device's session must remain untouched
     still_active = await db_session.scalar(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == hash_string(other_refresh_token)
+        select(Session).where(
+            Session.refresh_token_hash == hash_string(other_refresh_token)
         )
     )
     assert still_active is not None
+    assert still_active.revoked_at is None
+    other_refresh = await client.post(
+        f"{API_VERSION}/auth/refresh", json={"refresh_token": other_refresh_token}
+    )
+    assert other_refresh.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.asyncio
@@ -53,9 +62,21 @@ async def test_logout_makes_refresh_token_unusable(
 
     logout_response = await client.post(
         f"{API_VERSION}/auth/logout",
-        json={"refresh_token": user["refresh_token"]},
+        headers={"Authorization": f"Bearer {user['access_token']}"},
     )
     assert logout_response.status_code == status.HTTP_204_NO_CONTENT
+
+    me = await client.get(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": f"Bearer {user['access_token']}"},
+    )
+    assert me.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(me, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED)
+    repeated = await client.post(
+        f"{API_VERSION}/auth/logout",
+        headers={"Authorization": f"Bearer {user['access_token']}"},
+    )
+    assert repeated.status_code == status.HTTP_401_UNAUTHORIZED
 
     refresh_response = await client.post(
         f"{API_VERSION}/auth/refresh",
@@ -69,21 +90,13 @@ async def test_logout_makes_refresh_token_unusable(
 
 
 @pytest.mark.asyncio
-async def test_logout_nonexistent_token_is_idempotent(client: AsyncClient):
-    response = await client.post(
-        f"{API_VERSION}/auth/logout",
-        json={"refresh_token": "not-a-real-token"},
+@pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer invalid-token"}])
+async def test_logout_requires_valid_authentication(client: AsyncClient, headers):
+    response = await client.post(f"{API_VERSION}/auth/logout", headers=headers)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        response, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
     )
-
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-
-
-@pytest.mark.asyncio
-async def test_logout_missing_field_returns_422(client: AsyncClient):
-    response = await client.post(f"{API_VERSION}/auth/logout", json={})
-
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert_validation_response(response, {"refresh_token": "missing"})
 
 
 @pytest.mark.asyncio
@@ -102,7 +115,9 @@ async def test_logout_all_revokes_every_session(
 ):
     user = await registered_user_with_role("user")
 
-    second_refresh_token = await create_refresh_token(db_session, user["id"], 60)
+    second_refresh_token, _ = await create_refresh_token(
+        db_session, uuid.UUID(user["id"]), SessionMetadata(), 60, 120
+    )
 
     response = await client.post(
         f"{API_VERSION}/auth/logout-all",
@@ -113,10 +128,26 @@ async def test_logout_all_revokes_every_session(
 
     remaining = (
         await db_session.scalars(
-            select(RefreshToken).where(RefreshToken.user_id == uuid.UUID(user["id"]))
+            select(Session).where(Session.user_id == uuid.UUID(user["id"]))
         )
     ).all()
-    assert remaining == []
+    assert {row.refresh_token_hash for row in remaining} == {
+        hash_string(user["refresh_token"]),
+        hash_string(second_refresh_token),
+    }
+    assert all(session.revoked_at is not None for session in remaining)
+
+    for row in remaining:
+        me = await client.get(
+            f"{API_VERSION}/users/me",
+            headers={
+                "Authorization": f"Bearer {create_access_token(row.user_id, row.id)}"
+            },
+        )
+        assert me.status_code == status.HTTP_401_UNAUTHORIZED
+        assert_error_response(
+            me, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+        )
 
     # both sessions must now be rejected by /refresh
     for token in (user["refresh_token"], second_refresh_token):
@@ -144,8 +175,14 @@ async def test_logout_all_does_not_affect_other_users_sessions(
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     user_b_token = await db_session.scalar(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == hash_string(user_b["refresh_token"])
+        select(Session).where(
+            Session.refresh_token_hash == hash_string(user_b["refresh_token"])
         )
     )
     assert user_b_token is not None
+    assert user_b_token.revoked_at is None
+    me = await client.get(
+        f"{API_VERSION}/users/me",
+        headers={"Authorization": f"Bearer {user_b['access_token']}"},
+    )
+    assert me.status_code == status.HTTP_200_OK

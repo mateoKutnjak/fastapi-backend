@@ -4,9 +4,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth.dependencies import get_current_user, require_permission
+from app.api.v1.auth.authentication import UserContext
+from app.api.v1.auth.dependencies import get_current_user_context, require_permission
 from app.api.v1.users import services
-from app.api.v1.users.models import User
 from app.api.v1.users.schemas import UserResponsePrivate
 from app.core.db import get_db
 
@@ -14,14 +14,16 @@ router = APIRouter()
 
 
 @router.get("/me", response_model=UserResponsePrivate)
-async def get_me(current_user: Annotated[User, Depends(get_current_user)]):
-    return current_user
+async def get_me(
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
+):
+    return user_context.user
 
 
 @router.get("/{user_id}", response_model=UserResponsePrivate)
 async def get_user(
     user_id: Annotated[uuid.UUID, Path()],
-    current_user: Annotated[User, Depends(require_permission("users:read"))],
+    user_context: Annotated[UserContext, Depends(require_permission("users:read"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await services.get_user_by_id(db, user_id)
@@ -29,7 +31,7 @@ async def get_user(
 
 @router.get("/", response_model=list[UserResponsePrivate])
 async def get_all_users(
-    current_user: Annotated[User, Depends(require_permission("users:list"))],
+    user_context: Annotated[UserContext, Depends(require_permission("users:list"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await services.get_all_users(db)
@@ -37,10 +39,10 @@ async def get_all_users(
 
 @router.delete("/me", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def delete_me(
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await services.delete_user_by_id(db, current_user.id)
+    await services.delete_user_by_id(db, user_context.user.id)
 
 
 @router.delete(
@@ -48,7 +50,7 @@ async def delete_me(
 )
 async def delete_user(
     user_id: Annotated[uuid.UUID, Path()],
-    current_user: Annotated[User, Depends(require_permission("users:delete"))],
+    user_context: Annotated[UserContext, Depends(require_permission("users:delete"))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await services.delete_user_by_id(db, user_id)

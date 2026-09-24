@@ -142,7 +142,9 @@ async def test_get_all_users_for_roles(
 async def test_access_token_for_missing_user_hides_user_not_found(client: AsyncClient):
     response = await client.get(
         f"{API_VERSION}/users/me",
-        headers={"Authorization": f"Bearer {create_access_token(uuid.uuid4())}"},
+        headers={
+            "Authorization": f"Bearer {create_access_token(uuid.uuid4(), uuid.uuid4())}"
+        },
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert_error_response(

@@ -32,3 +32,10 @@ class ChangePasswordRequest(BaseModel):
 
 class SetPasswordRequest(BaseModel):
     new_password: Password
+
+
+class SessionMetadata(BaseModel):
+    device_name: str | None = Field(default=None, max_length=255)
+    device_id: str | None = Field(default=None, max_length=255)
+    user_agent: str | None = Field(default=None, max_length=512)
+    ip_address: str | None = Field(default=None, max_length=45)

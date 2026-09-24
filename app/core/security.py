@@ -26,16 +26,21 @@ def generate_random_token() -> str:
 
 def create_access_token(
     subject: uuid.UUID | str,
+    session_id: uuid.UUID,
     expires_delta: int | None = None,
 ) -> str:
     if expires_delta:
-        expire = datetime.now(UTC) + timedelta(minutes=expires_delta)
+        expire = datetime.now(UTC) + timedelta(
+            minutes=settings.access_token_expire_minutes
+            if expires_delta is None
+            else expires_delta
+        )
     else:
         expire = datetime.now(UTC) + timedelta(
             minutes=settings.access_token_expire_minutes
         )
 
-    payload = {"sub": str(subject), "exp": expire}
+    payload = {"sub": str(subject), "session_id": str(session_id), "exp": expire}
 
     return jwt.encode(
         payload,
@@ -44,13 +49,13 @@ def create_access_token(
     )
 
 
-def verify_access_token(token: str) -> uuid.UUID | None:
+def verify_access_token(token: str) -> tuple[uuid.UUID, uuid.UUID] | None:
     try:
         payload = jwt.decode(
             token,
             settings.secret_key.get_secret_value(),
             algorithms=[settings.algorithm],
-            options={"require": ["exp", "sub"]},
+            options={"require": ["exp", "session_id", "sub"]},
         )
 
     except jwt.DecodeError as e:
@@ -62,7 +67,15 @@ def verify_access_token(token: str) -> uuid.UUID | None:
     except (jwt.InvalidTokenError, ValueError) as e:
         raise InvalidTokenError("Invalid authentication credentials") from e
 
-    return uuid.UUID(payload.get("sub"))
+    try:
+        if not isinstance(payload["sub"], str) or not isinstance(
+            payload["session_id"], str
+        ):
+            raise ValueError("Invalid identifier claims")
+
+        return uuid.UUID(payload.get("sub")), uuid.UUID(payload.get("session_id"))
+    except (KeyError, ValueError) as e:
+        raise InvalidTokenError("Missing required claims") from e
 
 
 def hash_string(token: str) -> str:

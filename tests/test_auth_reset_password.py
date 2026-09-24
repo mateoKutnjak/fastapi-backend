@@ -22,6 +22,12 @@ async def test_reset_password_success_changes_password_and_consumes_token(
     registered_user_with_role: dict,
 ):
     user = await registered_user_with_role("user")
+    other_response = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={"identifier": user["email"], "password": user["password"]},
+    )
+    assert other_response.status_code == status.HTTP_200_OK
+    other = other_response.json()
     raw_token = await forgot_password(db_session, user["email"])
 
     response = await client.post(
@@ -54,6 +60,23 @@ async def test_reset_password_success_changes_password_and_consumes_token(
     assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
     assert_error_response(
         refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+    )
+
+    for tokens in (user, other):
+        me = await client.get(
+            f"{API_VERSION}/users/me",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert me.status_code == status.HTTP_401_UNAUTHORIZED
+        assert_error_response(
+            me, ErrorCode.AUTHENTICATION_FAILED, ErrorDetail.UNAUTHORIZED
+        )
+    other_refresh = await client.post(
+        f"{API_VERSION}/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )
+    assert other_refresh.status_code == status.HTTP_401_UNAUTHORIZED
+    assert_error_response(
+        other_refresh, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
     )
 
     token_row = await db_session.scalar(

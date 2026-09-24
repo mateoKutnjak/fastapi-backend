@@ -3,18 +3,20 @@ from datetime import UTC, datetime, timedelta
 
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.api.v1.auth.authentication import UserContext
 from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
-    RefreshToken,
+    Session,
 )
 from app.api.v1.auth.schemas import (
     ChangePasswordRequest,
     ResetPasswordRequest,
+    SessionMetadata,
     SetPasswordRequest,
     TokenResponse,
 )
@@ -35,14 +37,12 @@ from app.core.exceptions.domain_exceptions import (
     CurrentUserAlreadyHasPasswordError,
     CurrentUserHasNoPasswordError,
     ExpiredPasswordResetTokenError,
-    ExpiredTokenError,
     ExpiredVerificationTokenError,
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
     InvalidOAuthTokenError,
     InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
-    InvalidTokenError,
     InvalidVerificationTokenError,
     OAuthEmailNotProvidedError,
     OAuthEmailNotVerifiedError,
@@ -68,56 +68,56 @@ async def get_role_by_name(db: AsyncSession, name: str):
     return role
 
 
+async def create_session_tokens(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    metadata: SessionMetadata,
+    expires_delta: int | None = None,
+    absolute_expires_delta: int | None = None,
+) -> TokenResponse:
+    raw_refresh_token, session = await create_refresh_token(
+        db,
+        user_id,
+        metadata,
+        settings.refresh_token_expire_minutes
+        if expires_delta is None
+        else expires_delta,
+        settings.absolute_refresh_token_expire_minutes
+        if absolute_expires_delta is None
+        else absolute_expires_delta,
+    )
+    access_token = create_access_token(subject=user_id, session_id=session.id)
+
+    return TokenResponse(access_token=access_token, refresh_token=raw_refresh_token)
+
+
 async def create_refresh_token(
-    db: AsyncSession, user_id: uuid.UUID, expires_delta: int
-) -> str:
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    metadata: SessionMetadata,
+    expires_delta: int,
+    absolute_expires_delta: int,
+) -> tuple[str, Session]:
     raw_token = generate_random_token()
 
     token_hash = hash_string(raw_token)
 
-    refresh_token = RefreshToken(
+    session = Session(
         user_id=user_id,
-        token_hash=token_hash,
+        refresh_token_hash=token_hash,
         expires_at=datetime.now(UTC) + timedelta(minutes=expires_delta),
+        absolute_expires_at=datetime.now(UTC)
+        + timedelta(minutes=absolute_expires_delta),
+        device_name=metadata.device_name,
+        device_id=metadata.device_id,
+        user_agent=metadata.user_agent,
+        ip_address=metadata.ip_address,
     )
 
-    db.add(refresh_token)
+    db.add(session)
     await db.flush()
 
-    return raw_token
-
-
-async def verify_refresh_token(
-    db: AsyncSession, raw_refresh_token: str
-) -> tuple[str, uuid.UUID]:
-    hashed_refresh_token = hash_string(raw_refresh_token)
-
-    refresh_token_record = await db.scalar(
-        select(RefreshToken).where(RefreshToken.token_hash == hashed_refresh_token)
-    )
-
-    if not refresh_token_record:
-        raise InvalidRefreshTokenError()
-
-    if refresh_token_record.expires_at < datetime.now(UTC):
-        raise ExpiredTokenError()
-
-    await db.delete(refresh_token_record)
-    await db.flush()
-
-    new_refresh_token = generate_random_token()
-
-    new_refresh_token_record = RefreshToken(
-        user_id=refresh_token_record.user_id,
-        token_hash=hash_string(new_refresh_token),
-        expires_at=datetime.now(UTC)
-        + timedelta(minutes=settings.refresh_token_expire_minutes),
-    )
-
-    db.add(new_refresh_token_record)
-    await db.commit()
-
-    return new_refresh_token, refresh_token_record.user_id
+    return raw_token, session
 
 
 async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str:
@@ -141,6 +141,7 @@ async def create_verification_token(db: AsyncSession, user_id: uuid.UUID) -> str
 async def register_user(
     body: UserCreate,
     db: AsyncSession,
+    metadata: SessionMetadata,
 ) -> tuple[TokenResponse, str]:
     conflict_fields = {}
 
@@ -166,19 +167,16 @@ async def register_user(
     user = await create_user(db, body)
 
     raw_email_verification_token = await create_verification_token(db, user.id)
-    token_response = TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=await create_refresh_token(
-            db, user.id, settings.refresh_token_expire_minutes
-        ),
-    )
+    token_response = await create_session_tokens(db, user.id, metadata=metadata)
 
     await db.commit()
 
     return token_response, raw_email_verification_token
 
 
-async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenResponse:
+async def login_user(
+    db: AsyncSession, identifier: str, password: str, metadata: SessionMetadata
+) -> TokenResponse:
     try:
         if identifier.count("@") > 0:
             user = await get_user_by_email(db, identifier)
@@ -195,31 +193,36 @@ async def login_user(db: AsyncSession, identifier: str, password: str) -> TokenR
     if not user or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
 
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=await create_refresh_token(
-            db, user.id, settings.refresh_token_expire_minutes
-        ),
-    )
+    return await create_session_tokens(db, user.id, metadata)
 
 
 async def logout_user_from_one_device(
     db: AsyncSession,
-    refresh_token: str,
+    user_context: UserContext,
 ) -> None:
     await db.execute(
-        delete(RefreshToken).where(
-            RefreshToken.token_hash == hash_string(refresh_token)
+        update(Session)
+        .where(
+            Session.id == user_context.session.id,
+            Session.revoked_at.is_(None),
         )
+        .values(revoked_at=datetime.now(UTC))
     )
     await db.commit()
 
 
 async def logout_user_from_all_devices(
     db: AsyncSession,
-    user_id: uuid.UUID,
+    user_context: UserContext,
 ) -> None:
-    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
+    await db.execute(
+        update(Session)
+        .where(
+            Session.user_id == user_context.user.id,
+            Session.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(UTC))
+    )
     await db.commit()
 
 
@@ -227,17 +230,39 @@ async def refresh_token(
     db: AsyncSession,
     refresh_token: str,
 ) -> TokenResponse:
-    try:
-        new_refresh_token, user_id = await verify_refresh_token(db, refresh_token)
-    except (InvalidTokenError, ExpiredTokenError) as e:
-        raise InvalidRefreshTokenError() from e
+
+    session = await db.scalar(
+        select(Session)
+        .where(Session.refresh_token_hash == hash_string(refresh_token))
+        .with_for_update()
+    )
+
+    now = datetime.now(UTC)
+
+    if (
+        session is None
+        or session.revoked_at is not None
+        or session.expires_at <= now
+        or session.absolute_expires_at <= now
+    ):
+        raise InvalidRefreshTokenError()
+
+    new_refresh_token = generate_random_token()
+
+    session.refresh_token_hash = hash_string(new_refresh_token)
+    session.expires_at = min(
+        now + timedelta(minutes=settings.refresh_token_expire_minutes),
+        session.absolute_expires_at,
+    )
+
+    token_response = TokenResponse(
+        access_token=create_access_token(session.user_id, session.id),
+        refresh_token=new_refresh_token,
+    )
 
     await db.commit()
 
-    return TokenResponse(
-        access_token=create_access_token(user_id),
-        refresh_token=new_refresh_token,
-    )
+    return token_response
 
 
 async def verify_email(db: AsyncSession, raw_token: str) -> None:
@@ -309,40 +334,73 @@ async def reset_password(db: AsyncSession, body: ResetPasswordRequest) -> None:
     user.password_hash = hash_password(body.new_password)
     await db.delete(token)
 
-    # Delete all refresh tokens associated with the user to force re-authentication
-    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    # Revoke all active sessions for the user to force re-authentication
+    await db.execute(
+        update(Session)
+        .where(
+            Session.user_id == user.id,
+            Session.revoked_at.is_(None),
+        )
+        .values(
+            revoked_at=datetime.now(UTC),
+        )
+    )
 
     await db.commit()
 
 
 async def change_password(
-    db: AsyncSession, user: User, body: ChangePasswordRequest
+    db: AsyncSession, user_context: UserContext, body: ChangePasswordRequest
 ) -> None:
-    if not user.password_hash:
+    if not user_context.user.password_hash:
         raise CurrentUserHasNoPasswordError()
 
-    if not verify_password(body.current_password, user.password_hash):
+    if not verify_password(body.current_password, user_context.user.password_hash):
         raise InvalidCurrentPasswordError()
 
-    user.password_hash = hash_password(body.new_password)
+    user_context.user.password_hash = hash_password(body.new_password)
 
-    # Delete all refresh tokens associated with the user to force re-authentication
-    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    # Revoke all other active sessions for the user to force re-authentication
+    await db.execute(
+        update(Session)
+        .where(
+            Session.user_id == user_context.user.id,
+            Session.id != user_context.session.id,
+            Session.revoked_at.is_(None),
+        )
+        .values(
+            revoked_at=datetime.now(UTC),
+        )
+    )
     await db.commit()
 
 
-async def set_password(db: AsyncSession, user: User, body: SetPasswordRequest) -> None:
-    if user.password_hash:
+async def set_password(
+    db: AsyncSession, user_context: UserContext, body: SetPasswordRequest
+) -> None:
+    if user_context.user.password_hash:
         raise CurrentUserAlreadyHasPasswordError()
 
-    user.password_hash = hash_password(body.new_password)
+    user_context.user.password_hash = hash_password(body.new_password)
 
-    # Delete all refresh tokens associated with the user to force re-authentication
-    await db.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    # Revoke all other active sessions for the user to force re-authentication
+    await db.execute(
+        update(Session)
+        .where(
+            Session.user_id == user_context.user.id,
+            Session.id != user_context.session.id,
+            Session.revoked_at.is_(None),
+        )
+        .values(
+            revoked_at=datetime.now(UTC),
+        )
+    )
     await db.commit()
 
 
-async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
+async def google_sign_in(
+    db: AsyncSession, token_received, metadata: SessionMetadata
+) -> TokenResponse:
 
     try:
         payload = id_token.verify_oauth2_token(
@@ -417,9 +475,4 @@ async def google_sign_in(db: AsyncSession, token_received) -> TokenResponse:
 
     await db.refresh(user)
 
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=await create_refresh_token(
-            db, user.id, settings.refresh_token_expire_minutes
-        ),
-    )
+    return await create_session_tokens(db, user.id, metadata)

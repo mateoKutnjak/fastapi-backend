@@ -5,7 +5,8 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.api.v1.auth.models import RefreshToken
+from app.api.v1.auth.models import Session
+from app.api.v1.auth.schemas import SessionMetadata
 from app.api.v1.auth.services import create_refresh_token
 from app.core.db import AsyncSession
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
@@ -53,8 +54,12 @@ async def test_refresh_token_expired_token(
 ):
     user = await registered_user_with_role("user")
 
-    expired_refresh_token = await create_refresh_token(
-        db_session, user["id"], expires_delta=-5
+    expired_refresh_token, _ = await create_refresh_token(
+        db_session,
+        uuid.UUID(user["id"]),
+        SessionMetadata(),
+        expires_delta=-5,
+        absolute_expires_delta=60,
     )
 
     response = await client.post(
@@ -142,8 +147,8 @@ async def test_refresh_token_persisted_hashed_in_db(
     user = await registered_user_with_role("user")
 
     result = await db_session.execute(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == hash_string(user["refresh_token"])
+        select(Session).where(
+            Session.refresh_token_hash == hash_string(user["refresh_token"])
         )
     )
     token_row = result.scalar_one_or_none()

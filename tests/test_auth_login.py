@@ -3,7 +3,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
-from app.core.security import create_access_token
+from app.core.security import create_access_token, verify_access_token
 from tests.conftest import API_VERSION
 from tests.error_assertions import assert_error_response
 
@@ -206,7 +206,9 @@ async def test_expired_access_token(
 ):
     user = await registered_user_with_role("user")
 
-    expired_access_token = create_access_token(user["id"], expires_delta=-5)
+    expired_access_token = create_access_token(
+        user["id"], verify_access_token(user["access_token"])[1], expires_delta=-5
+    )
 
     response = await client.get(
         f"{API_VERSION}/users/me",

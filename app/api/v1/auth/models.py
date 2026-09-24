@@ -72,20 +72,38 @@ class OAuthAccount(Base, TimestampMixin):
         return email.lower() if email else email
 
 
-class RefreshToken(Base, TimestampMixin):
-    __tablename__ = "refresh_tokens"
+class Session(Base, TimestampMixin):
+    __tablename__ = "sessions"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True
     )
-    token_hash: Mapped[str] = mapped_column(
+
+    refresh_token_hash: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
+
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )
+    absolute_expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    device_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     user: Mapped[User] = relationship(lazy="selectin")

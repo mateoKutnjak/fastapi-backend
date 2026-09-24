@@ -22,10 +22,16 @@ def make_google_payload() -> dict:
 
 
 @pytest.mark.anyio
-async def test_change_password_success_invalidates_old_credentials_and_session(
+async def test_change_password_preserves_current_session_and_revokes_others(
     client: AsyncClient, registered_user_with_role: dict
 ):
     user = await registered_user_with_role("user")
+    other_login = await client.post(
+        f"{API_VERSION}/auth/login",
+        json={"identifier": user["email"], "password": user["password"]},
+    )
+    assert other_login.status_code == status.HTTP_200_OK
+    other = other_login.json()
 
     response = await client.post(
         f"{API_VERSION}/auth/change-password",
@@ -58,9 +64,19 @@ async def test_change_password_success_invalidates_old_credentials_and_session(
         f"{API_VERSION}/auth/refresh",
         json={"refresh_token": user["refresh_token"]},
     )
-    assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert refresh_response.status_code == status.HTTP_200_OK
+    for tokens, expected in [(user, 200), (other, 401)]:
+        me = await client.get(
+            f"{API_VERSION}/users/me",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert me.status_code == expected
+    rejected = await client.post(
+        f"{API_VERSION}/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )
+    assert rejected.status_code == status.HTTP_401_UNAUTHORIZED
     assert_error_response(
-        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+        rejected, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
     )
 
 

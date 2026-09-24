@@ -11,8 +11,9 @@ from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
-    RefreshToken,
+    Session,
 )
+from app.api.v1.auth.schemas import SessionMetadata
 from app.api.v1.auth.services import create_refresh_token, forgot_password
 from app.api.v1.users.constants import DEFAULT_ROLE, RoleEnum
 from app.api.v1.users.models import User
@@ -147,7 +148,7 @@ async def test_delete_me_cascades_refresh_tokens(
 ):
     user = await registered_user_with_role(RoleEnum.USER)
     user_id = uuid.UUID(user["id"])
-    await create_refresh_token(db_session, user_id, 60)
+    await create_refresh_token(db_session, user_id, SessionMetadata(), 60, 120)
 
     response = await client.delete(
         f"{API_VERSION}/users/me",
@@ -156,9 +157,7 @@ async def test_delete_me_cascades_refresh_tokens(
     assert response.status_code == status.HTTP_204_NO_CONTENT
 
     refresh_tokens_after = (
-        await db_session.scalars(
-            select(RefreshToken).where(RefreshToken.user_id == user_id)
-        )
+        await db_session.scalars(select(Session).where(Session.user_id == user_id))
     ).all()
     assert refresh_tokens_after == []
 
@@ -171,7 +170,7 @@ async def test_delete_me_cascades_all_user_related_records(
     user_id = uuid.UUID(user["id"])
 
     await forgot_password(db_session, user["email"])
-    await create_refresh_token(db_session, user_id, 60)
+    await create_refresh_token(db_session, user_id, SessionMetadata(), 60, 120)
 
     oauth_account = OAuthAccount(
         user_id=user_id,
@@ -197,9 +196,7 @@ async def test_delete_me_cascades_all_user_related_records(
         is not None
     )
     assert (
-        await db_session.scalar(
-            select(RefreshToken).where(RefreshToken.user_id == user_id)
-        )
+        await db_session.scalar(select(Session).where(Session.user_id == user_id))
         is not None
     )
     assert (
@@ -218,7 +215,7 @@ async def test_delete_me_cascades_all_user_related_records(
     for model in (
         EmailVerificationToken,
         ForgotPasswordToken,
-        RefreshToken,
+        Session,
         OAuthAccount,
     ):
         assert (

@@ -65,10 +65,18 @@ async def test_oauth_user_can_set_password_and_login_with_email(
 
 
 @pytest.mark.anyio
-async def test_set_password_revokes_existing_oauth_refresh_token(
+async def test_set_password_preserves_current_session_and_revokes_others(
     client: AsyncClient,
 ):
-    _, oauth_tokens = await create_oauth_session(client)
+    payload, oauth_tokens = await create_oauth_session(client)
+    with patch(
+        "app.api.v1.auth.services.id_token.verify_oauth2_token", return_value=payload
+    ):
+        other_response = await client.post(
+            f"{API_VERSION}/auth/oauth/google", json={"id_token": "fake-token"}
+        )
+    assert other_response.status_code == status.HTTP_200_OK
+    other = other_response.json()
 
     response = await client.post(
         f"{API_VERSION}/auth/set-password",
@@ -83,9 +91,19 @@ async def test_set_password_revokes_existing_oauth_refresh_token(
         json={"refresh_token": oauth_tokens["refresh_token"]},
     )
 
-    assert refresh_response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert refresh_response.status_code == status.HTTP_200_OK
+    for tokens, expected in [(oauth_tokens, 200), (other, 401)]:
+        me = await client.get(
+            f"{API_VERSION}/users/me",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert me.status_code == expected
+    rejected = await client.post(
+        f"{API_VERSION}/auth/refresh", json={"refresh_token": other["refresh_token"]}
+    )
+    assert rejected.status_code == status.HTTP_401_UNAUTHORIZED
     assert_error_response(
-        refresh_response, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
+        rejected, ErrorCode.INVALID_REFRESH_TOKEN, ErrorDetail.UNAUTHORIZED
     )
 
 

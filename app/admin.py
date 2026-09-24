@@ -1,22 +1,26 @@
 # app/admin.py
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from fastapi import Request
 from sqladmin import ModelView
 from sqladmin.authentication import AuthenticationBackend
+from sqlalchemy import update
 
+from app.api.v1.auth.authentication import authenticate_access_token
 from app.api.v1.auth.models import (
     EmailVerificationToken,
     ForgotPasswordToken,
     OAuthAccount,
-    RefreshToken,
+    Session,
 )
+from app.api.v1.auth.schemas import SessionMetadata
 from app.api.v1.auth.services import login_user
 from app.api.v1.users.constants import PermissionEnum
 from app.api.v1.users.models import Permission, Role, User
-from app.api.v1.users.services import get_user_by_id
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions.domain_exceptions import (
+    AuthenticationFailedError,
     ExpiredTokenError,
     InvalidCredentialsError,
     InvalidTokenError,
@@ -36,25 +40,62 @@ class AdminAuth(AuthenticationBackend):
         form = await request.form()
         username, password = form["username"], form["password"]
 
+        user_agent = request.headers.get("user-agent")
+        metadata = SessionMetadata(
+            user_agent=user_agent[:512] if user_agent else None,
+            ip_address=request.client.host if request.client else None,
+        )
+
         async with AsyncSessionLocal() as db:
             try:
                 token_response = await login_user(
-                    db, identifier=username, password=password
+                    db, identifier=username, password=password, metadata=metadata
                 )
-            except UserNotFoundError, InvalidCredentialsError:
+                user_context = await authenticate_access_token(
+                    db, token_response.access_token
+                )
+            except (
+                UserNotFoundError,
+                InvalidCredentialsError,
+                AuthenticationFailedError,
+            ):
                 return False
 
-            user_id = verify_access_token(token_response.access_token)
-            user = await get_user_by_id(db, user_id)
-
-            if not user or not has_admin_dashboard_access(user):
+            if not has_admin_dashboard_access(user_context.user):
                 return False
+
+            await db.commit()
 
         request.session.update({"token": token_response.access_token})
         return True
 
     async def logout(self, request: Request) -> bool:
+        access_token = request.session.get("token")
+
+        if not access_token:
+            request.session.clear()
+            return False
+
+        try:
+            user_id, session_id = verify_access_token(access_token)
+        except InvalidTokenError, ExpiredTokenError:
+            request.session.clear()
+            return False
+
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                update(Session)
+                .where(
+                    Session.id == session_id,
+                    Session.user_id == user_id,
+                    Session.revoked_at.is_(None),
+                )
+                .values(revoked_at=datetime.now(UTC))
+            )
+            await db.commit()
+
         request.session.clear()
+
         return True
 
     async def authenticate(self, request: Request) -> bool:
@@ -64,17 +105,11 @@ class AdminAuth(AuthenticationBackend):
             return False
 
         try:
-            user_id = verify_access_token(token)
-        except InvalidTokenError, ExpiredTokenError:
+            async with AsyncSessionLocal() as db:
+                context = await authenticate_access_token(db, token)
+                return has_admin_dashboard_access(context.user)
+        except AuthenticationFailedError:
             return False
-
-        async with AsyncSessionLocal() as db:
-            user = await get_user_by_id(db, user_id)
-
-        if user and has_admin_dashboard_access(user):
-            return True
-
-        return False
 
 
 class UserAdmin(ModelView, model=User):
@@ -130,14 +165,20 @@ class ForgotPasswordTokenAdmin(ModelView, model=ForgotPasswordToken):
     can_delete = True
 
 
-class RefreshTokenAdmin(ModelView, model=RefreshToken):
+class RefreshTokenAdmin(ModelView, model=Session):
     column_list: ClassVar[list] = [
-        RefreshToken.id,
+        Session.id,
         "user.email",
-        RefreshToken.token_hash,
-        RefreshToken.expires_at,
+        Session.refresh_token_hash,
+        Session.expires_at,
+        Session.device_name,
+        Session.device_id,
+        Session.user_agent,
+        Session.ip_address,
+        Session.revoked_at,
+        Session.absolute_expires_at,
     ]
-    column_searchable_list: ClassVar[list] = [RefreshToken.token_hash]
+    column_searchable_list: ClassVar[list] = [Session.refresh_token_hash]
 
     can_create = False
     can_edit = False

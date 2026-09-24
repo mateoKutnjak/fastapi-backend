@@ -30,6 +30,7 @@ class Settings(BaseSettings):
 
     access_token_expire_minutes: int = 15
     refresh_token_expire_minutes: int = 10080
+    absolute_refresh_token_expire_minutes: int = 43200
 
     # Email
 

@@ -4,17 +4,18 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
-from app.api.v1.auth.dependencies import get_current_user
+from app.api.v1.auth.authentication import UserContext
+from app.api.v1.auth.dependencies import get_current_user_context, get_session_metadata
 from app.api.v1.auth.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     GoogleAuthRequest,
     RefreshTokenRequest,
     ResetPasswordRequest,
+    SessionMetadata,
     SetPasswordRequest,
     TokenResponse,
 )
-from app.api.v1.users.models import User
 from app.api.v1.users.schemas import UserCreate, UserLogin
 from app.core.db import AsyncSession, get_db
 from app.core.email import FastApiMailSender
@@ -30,9 +31,10 @@ router = APIRouter()
 async def register(
     body: Annotated[UserCreate, Body()],
     db: Annotated[AsyncSession, Depends(get_db)],
+    metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
     background_tasks: BackgroundTasks,
 ):
-    token_response, raw_token = await services.register_user(body, db)
+    token_response, raw_token = await services.register_user(body, db, metadata)
 
     fastapi_mail_sender = FastApiMailSender()
     background_tasks.add_task(
@@ -46,10 +48,14 @@ async def register(
 async def token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[AsyncSession, Depends(get_db)],
+    metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
     # TODO change username / email missmatch in OAuth2PasswordRequestForm
     return await services.login_user(
-        db, identifier=form_data.username, password=form_data.password
+        db,
+        identifier=form_data.username,
+        password=form_data.password,
+        metadata=metadata,
     )
 
 
@@ -57,26 +63,27 @@ async def token(
 async def login(
     body: Annotated[UserLogin, Body()],
     db: Annotated[AsyncSession, Depends(get_db)],
+    metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
     return await services.login_user(
-        db, identifier=body.identifier, password=body.password
+        db, identifier=body.identifier, password=body.password, metadata=metadata
     )
 
 
 @router.post("/logout", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
-    body: Annotated[RefreshTokenRequest, Body()],
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await services.logout_user_from_one_device(db, body.refresh_token)
+    await services.logout_user_from_one_device(db, user_context)
 
 
 @router.post("/logout-all", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def logout_all(
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await services.logout_user_from_all_devices(db, current_user.id)
+    await services.logout_user_from_all_devices(db, user_context)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -100,8 +107,9 @@ async def verify_email(
 async def google_login(
     body: Annotated[GoogleAuthRequest, Body()],
     db: Annotated[AsyncSession, Depends(get_db)],
+    metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
-    return await services.google_sign_in(db, body.id_token)
+    return await services.google_sign_in(db, body.id_token, metadata)
 
 
 @router.post("/forgot-password", response_model=None)
@@ -137,10 +145,10 @@ async def reset_password(
 )
 async def change_password(
     body: Annotated[ChangePasswordRequest, Body()],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await services.change_password(db, current_user, body)
+    await services.change_password(db, user_context, body)
 
 
 @router.post(
@@ -148,7 +156,7 @@ async def change_password(
 )
 async def set_password(
     body: Annotated[SetPasswordRequest, Body()],
-    current_user: Annotated[User, Depends(get_current_user)],
+    user_context: Annotated[UserContext, Depends(get_current_user_context)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await services.set_password(db, current_user, body)
+    await services.set_password(db, user_context, body)
