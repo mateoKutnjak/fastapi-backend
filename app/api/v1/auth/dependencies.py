@@ -16,7 +16,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=F
 
 async def get_current_user_context(
     token: Annotated[str | None, Depends(oauth2_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ) -> UserContext:
     # * Override the default behavior of OAuth2PasswordBearer to not raise an exception
     # * if no token is provided. Without this line the 401 exception would be raised

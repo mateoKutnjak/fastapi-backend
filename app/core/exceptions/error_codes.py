@@ -10,6 +10,8 @@ class ErrorCode(StrEnum):
     FORBIDDEN = "forbidden"
     NOT_FOUND = "not_found"
     CONFLICT = "conflict"
+    CONTENT_TOO_LARGE = "content_too_large"
+    UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
 
     # Domain-level codes (app/core/exceptions/domain_exceptions.py)
     USER_NOT_FOUND = "user_not_found"
@@ -33,10 +35,20 @@ class ErrorCode(StrEnum):
     AUTHENTICATION_FAILED = "authentication_failed"
     PERMISSION_DENIED = "permission_denied"
     VALIDATION_ERROR = "validation_error"
+    UNSUPPORTED_IMAGE_FORMAT = "unsupported_image_format"
+    FILE_SIZE_EXCEEDED = "file_size_exceeded"
+    EMPTY_FILE = "empty_file"
+    FILE_SAVE_ERROR = "file_save_error"
+    FILE_DELETE_ERROR = "file_delete_error"
+    FILE_INVALID_FILENAME = "file_invalid_filename"
 
     # Conflict-level codes
     USERNAME_ALREADY_EXISTS = "username_already_exists"
     EMAIL_ALREADY_EXISTS = "email_already_exists"
+
+    DATABASE_ERROR = "database_error"
+    STORAGE_BACKEND_NOT_SUPPORTED = "storage_backend_not_supported"
+    STORAGE_FILE_NOT_FOUND = "storage_file_not_found"
 
 
 class ErrorDetail(StrEnum):
@@ -47,3 +59,5 @@ class ErrorDetail(StrEnum):
     NOT_FOUND = "Not found"
     CONFLICT = "Conflict"
     VALIDATION_ERROR = "Validation error"
+    CONTENT_TOO_LARGE = "Content too large"
+    UNSUPPORTED_MEDIA_TYPE = "Unsupported media type"

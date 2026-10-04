@@ -30,7 +30,7 @@ router = APIRouter()
 )
 async def register(
     body: Annotated[UserCreate, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
     background_tasks: BackgroundTasks,
 ):
@@ -47,7 +47,7 @@ async def register(
 @router.post("/token", response_model=TokenResponse)
 async def token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
     # TODO change username / email missmatch in OAuth2PasswordRequestForm
@@ -62,7 +62,7 @@ async def token(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     body: Annotated[UserLogin, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
     return await services.login_user(
@@ -73,7 +73,7 @@ async def login(
 @router.post("/logout", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     user_context: Annotated[UserContext, Depends(get_current_user_context)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.logout_user_from_one_device(db, user_context)
 
@@ -81,7 +81,7 @@ async def logout(
 @router.post("/logout-all", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def logout_all(
     user_context: Annotated[UserContext, Depends(get_current_user_context)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.logout_user_from_all_devices(db, user_context)
 
@@ -89,7 +89,7 @@ async def logout_all(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     body: Annotated[RefreshTokenRequest, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     return await services.refresh_token(db, body.refresh_token)
 
@@ -97,7 +97,7 @@ async def refresh_token(
 @router.get("/verify")
 async def verify_email(
     token: Annotated[str, Query()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.verify_email(db, token)
     return {"detail": "Email verified successfully"}
@@ -106,7 +106,7 @@ async def verify_email(
 @router.post("/oauth/google", response_model=TokenResponse)
 async def google_login(
     body: Annotated[GoogleAuthRequest, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     metadata: Annotated[SessionMetadata, Depends(get_session_metadata)],
 ):
     return await services.google_sign_in(db, body.id_token, metadata)
@@ -115,7 +115,7 @@ async def google_login(
 @router.post("/forgot-password", response_model=None)
 async def forgot_password(
     body: Annotated[ForgotPasswordRequest, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     background_tasks: BackgroundTasks,
 ):
     raw_token = await services.forgot_password(db, body.email)
@@ -134,7 +134,7 @@ async def forgot_password(
 @router.post("/reset-password", response_model=None)
 async def reset_password(
     body: Annotated[ResetPasswordRequest, Body()],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.reset_password(db, body)
     return {"detail": "Password has been reset successfully"}
@@ -146,7 +146,7 @@ async def reset_password(
 async def change_password(
     body: Annotated[ChangePasswordRequest, Body()],
     user_context: Annotated[UserContext, Depends(get_current_user_context)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.change_password(db, user_context, body)
 
@@ -157,6 +157,6 @@ async def change_password(
 async def set_password(
     body: Annotated[SetPasswordRequest, Body()],
     user_context: Annotated[UserContext, Depends(get_current_user_context)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.set_password(db, user_context, body)

@@ -29,6 +29,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     role: RoleResponse
+    avatar_key: str | None = None
 
 
 class UserResponsePrivate(UserResponse):

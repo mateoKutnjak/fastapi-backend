@@ -1,6 +1,9 @@
+import logging
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.exceptions.domain_exceptions import (
     AuthenticationFailedError,
@@ -10,6 +13,11 @@ from app.core.exceptions.domain_exceptions import (
     DomainError,
     ExpiredPasswordResetTokenError,
     ExpiredVerificationTokenError,
+    FileDeleteError,
+    FileEmptyError,
+    FileInvalidFilenameError,
+    FileSaveError,
+    FileSizeExceededError,
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
     InvalidOAuthTokenError,
@@ -19,6 +27,8 @@ from app.core.exceptions.domain_exceptions import (
     OAuthEmailNotProvidedError,
     OAuthEmailNotVerifiedError,
     PermissionDeniedError,
+    StorageBackendNotSupportedError,
+    UnsupportedImageFormatError,
     UserNotFoundError,
 )
 from app.core.exceptions.error_codes import ErrorCode, ErrorDetail
@@ -26,9 +36,12 @@ from app.core.exceptions.http_exceptions import (
     AppException,
     BadRequestException,
     ConflictException,
+    ContentTooLargeException,
     ForbiddenException,
+    InternalErrorException,
     NotFoundException,
     UnauthorizedException,
+    UnsupportedMediaTypeException,
 )
 
 DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
@@ -48,7 +61,36 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     CurrentUserAlreadyHasPasswordError: UnauthorizedException,
     PermissionDeniedError: ForbiddenException,
     AuthenticationFailedError: UnauthorizedException,
+    UnsupportedImageFormatError: UnsupportedMediaTypeException,
+    FileSizeExceededError: ContentTooLargeException,
+    FileEmptyError: BadRequestException,
+    FileSaveError: InternalErrorException,
+    FileDeleteError: InternalErrorException,
+    FileInvalidFilenameError: BadRequestException,
+    StorageBackendNotSupportedError: InternalErrorException,
 }
+
+
+async def database_exception_handler(
+    request: Request,
+    exc: SQLAlchemyError,
+) -> JSONResponse:
+    logging.error(
+        "Database operation failed",
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": {
+                "detail": ErrorDetail.INTERNAL_ERROR.value,
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "code": ErrorCode.DATABASE_ERROR,
+                "fields": None,
+            }
+        },
+    )
 
 
 async def domain_exception_handler(request: Request, exc: DomainError) -> JSONResponse:
@@ -63,6 +105,13 @@ async def domain_exception_handler(request: Request, exc: DomainError) -> JSONRe
         status_code = http_exc_class.status_code
         detail = http_exc_class.detail
         code = exc.code
+
+    if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+        logging.error(
+            "Server-side domain error: %s",
+            exc.code,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
 
     return JSONResponse(
         status_code=status_code,

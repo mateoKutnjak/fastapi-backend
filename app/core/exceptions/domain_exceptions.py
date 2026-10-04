@@ -91,3 +91,31 @@ class AuthenticationFailedError(DomainError):
 
 class PermissionDeniedError(DomainError):
     code = ErrorCode.PERMISSION_DENIED
+
+
+class UnsupportedImageFormatError(DomainError):
+    code = ErrorCode.UNSUPPORTED_IMAGE_FORMAT
+
+
+class FileSizeExceededError(DomainError):
+    code = ErrorCode.FILE_SIZE_EXCEEDED
+
+
+class FileEmptyError(DomainError):
+    code = ErrorCode.EMPTY_FILE
+
+
+class FileInvalidFilenameError(DomainError):
+    code = ErrorCode.FILE_INVALID_FILENAME
+
+
+class FileSaveError(DomainError):
+    code = ErrorCode.FILE_SAVE_ERROR
+
+
+class FileDeleteError(DomainError):
+    code = ErrorCode.FILE_DELETE_ERROR
+
+
+class StorageBackendNotSupportedError(DomainError):
+    code = ErrorCode.STORAGE_BACKEND_NOT_SUPPORTED

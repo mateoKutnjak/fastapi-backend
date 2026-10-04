@@ -61,5 +61,20 @@ class Settings(BaseSettings):
 
     google_client_id: str
 
+    # Storage
+
+    storage_backend: str = "local"
+
+    local_storage_upload_dir: str = "uploads"
+    local_storage_upload_mount_path: str = "/uploads"
+
+    accepted_image_formats: set[str] = {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }
+    max_user_avatar_bytes: int = 5 * 1024 * 1024
+    max_user_avatar_pixels: int = 25_000_000
+
 
 settings = Settings()

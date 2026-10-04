@@ -46,3 +46,21 @@ class ConflictException(AppException):
     status_code: int = status.HTTP_409_CONFLICT
     detail: str = ErrorDetail.CONFLICT.value
     code: ErrorCode = ErrorCode.CONFLICT
+
+
+class ContentTooLargeException(AppException):
+    status_code: int = status.HTTP_413_CONTENT_TOO_LARGE
+    detail: str = ErrorDetail.CONTENT_TOO_LARGE.value
+    code: ErrorCode = ErrorCode.CONTENT_TOO_LARGE
+
+
+class UnsupportedMediaTypeException(AppException):
+    status_code: int = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    detail: str = ErrorDetail.UNSUPPORTED_MEDIA_TYPE.value
+    code: ErrorCode = ErrorCode.UNSUPPORTED_MEDIA_TYPE
+
+
+class InternalErrorException(AppException):
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    detail: str = ErrorDetail.INTERNAL_ERROR.value
+    code: ErrorCode = ErrorCode.INTERNAL_ERROR

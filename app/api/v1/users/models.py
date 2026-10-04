@@ -27,6 +27,7 @@ class User(Base, TimestampMixin):
     )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    avatar_key: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"), nullable=False)
     role: Mapped[Role] = relationship(lazy="selectin")
