@@ -61,12 +61,9 @@ class Settings(BaseSettings):
 
     google_client_id: str
 
-    # Storage
+    # Storage backend
 
     storage_backend: str = "local"
-
-    local_storage_upload_dir: str = "uploads"
-    local_storage_upload_mount_path: str = "/uploads"
 
     accepted_image_formats: set[str] = {
         "image/jpeg",
@@ -75,6 +72,18 @@ class Settings(BaseSettings):
     }
     max_user_avatar_bytes: int = 5 * 1024 * 1024
     max_user_avatar_pixels: int = 25_000_000
+
+    ## Local storage
+
+    local_storage_upload_dir: str = "uploads"
+    local_storage_upload_mount_path: str = "/uploads"
+
+    ## S3 storage
+
+    aws_access_key_id: str
+    aws_secret_access_key: SecretStr
+    aws_region: str
+    aws_s3_bucket_name: str
 
 
 settings = Settings()
