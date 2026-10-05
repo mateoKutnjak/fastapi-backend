@@ -15,7 +15,6 @@ from app.core.exceptions.domain_exceptions import (
     ExpiredVerificationTokenError,
     FileDeleteError,
     FileEmptyError,
-    FileInvalidFilenameError,
     FileSaveError,
     FileSizeExceededError,
     InvalidCredentialsError,
@@ -28,6 +27,9 @@ from app.core.exceptions.domain_exceptions import (
     OAuthEmailNotVerifiedError,
     PermissionDeniedError,
     StorageBackendNotSupportedError,
+    StorageInvalidFilenameError,
+    StorageInvalidFilePathError,
+    StorageInvalidSubfolderFormatError,
     UnsupportedImageFormatError,
     UserNotFoundError,
 )
@@ -66,8 +68,10 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     FileEmptyError: BadRequestException,
     FileSaveError: InternalErrorException,
     FileDeleteError: InternalErrorException,
-    FileInvalidFilenameError: BadRequestException,
+    StorageInvalidFilenameError: BadRequestException,
     StorageBackendNotSupportedError: InternalErrorException,
+    StorageInvalidSubfolderFormatError: InternalErrorException,
+    StorageInvalidFilePathError: InternalErrorException,
 }
 
 

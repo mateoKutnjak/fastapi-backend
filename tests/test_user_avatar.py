@@ -65,7 +65,13 @@ def avatar_env(tmp_path, monkeypatch):
     )
     storage = LocalStorage()
     monkeypatch.setattr(services, "get_storage", lambda: storage)
-    return SimpleNamespace(user=user, db=db, storage=storage, root=tmp_path)
+    return SimpleNamespace(
+        user=user,
+        db=db,
+        storage=storage,
+        root=tmp_path,
+        avatar_dir=tmp_path / "avatars",
+    )
 
 
 def upload(data=None, filename="photo.png"):
@@ -74,20 +80,26 @@ def upload(data=None, filename="photo.png"):
     )
 
 
+def write_avatar(env, key, data):
+    path = env.root / key
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
 @pytest.mark.asyncio
 async def test_replacement_keeps_old_until_commit(avatar_env):
     env = avatar_env
-    env.user.avatar_key = "old.png"
-    (env.root / "old.png").write_bytes(b"old")
+    env.user.avatar_key = "avatars/old.png"
+    write_avatar(env, env.user.avatar_key, b"old")
 
     async def commit():
-        assert (env.root / "old.png").exists()
+        assert (env.root / "avatars/old.png").exists()
         assert (env.root / env.user.avatar_key).exists()
 
     env.db.commit.side_effect = commit
     result = await services.update_user_avatar(env.db, env.user.id, upload())
     assert result is env.user
-    assert not (env.root / "old.png").exists()
+    assert not (env.root / "avatars/old.png").exists()
     assert (env.root / result.avatar_key).read_bytes() == image_bytes()
 
 
@@ -100,8 +112,8 @@ async def test_commit_failure_preserves_original_and_old_avatar(
     avatar_env, monkeypatch, rollback_fails, cleanup_fails
 ):
     env = avatar_env
-    env.user.avatar_key = "old.png"
-    (env.root / "old.png").write_bytes(b"old")
+    env.user.avatar_key = "avatars/old.png"
+    write_avatar(env, env.user.avatar_key, b"old")
     original = SQLAlchemyError("commit failed")
     env.db.commit.side_effect = original
     if rollback_fails:
@@ -115,10 +127,10 @@ async def test_commit_failure_preserves_original_and_old_avatar(
     assert caught.value is original
     env.db.rollback.assert_awaited_once()
     delete.assert_awaited_once()
-    assert delete.call_args.args[0] != "old.png"
-    assert (env.root / "old.png").read_bytes() == b"old"
+    assert delete.call_args.args[0] != "avatars/old.png"
+    assert (env.root / "avatars/old.png").read_bytes() == b"old"
     if not cleanup_fails:
-        assert list(env.root.iterdir()) == [env.root / "old.png"]
+        assert list(env.avatar_dir.iterdir()) == [env.root / "avatars/old.png"]
 
 
 @pytest.mark.asyncio
@@ -126,7 +138,7 @@ async def test_old_cleanup_failure_does_not_fail_upload(
     avatar_env, monkeypatch, caplog
 ):
     env = avatar_env
-    env.user.avatar_key = "old.png"
+    env.user.avatar_key = "avatars/old.png"
     monkeypatch.setattr(env.storage, "delete", AsyncMock(side_effect=FileDeleteError()))
     result = await services.update_user_avatar(env.db, env.user.id, upload())
     assert (env.root / result.avatar_key).exists()
@@ -171,8 +183,8 @@ async def test_user_deletion_cleanup(
     avatar_env, monkeypatch, commit_fails, cleanup_fails
 ):
     env = avatar_env
-    env.user.avatar_key = "old.png"
-    (env.root / "old.png").write_bytes(b"old")
+    env.user.avatar_key = "avatars/old.png"
+    write_avatar(env, env.user.avatar_key, b"old")
     delete = AsyncMock(wraps=env.storage.delete)
     if cleanup_fails:
         delete.side_effect = FileDeleteError()
@@ -184,8 +196,8 @@ async def test_user_deletion_cleanup(
         delete.assert_not_awaited()
     else:
         await services.delete_user_by_id(env.db, env.user.id)
-        delete.assert_awaited_once_with("old.png")
-    assert (env.root / "old.png").exists() == (commit_fails or cleanup_fails)
+        delete.assert_awaited_once_with("avatars/old.png")
+    assert (env.root / "avatars/old.png").exists() == (commit_fails or cleanup_fails)
 
 
 @pytest.fixture
@@ -211,8 +223,8 @@ def avatar_app(avatar_env):
 @pytest.mark.asyncio
 async def test_delete_avatar_http_clears_key_and_removes_file(avatar_env, avatar_app):
     env = avatar_env
-    env.user.avatar_key = "avatar.png"
-    (env.root / env.user.avatar_key).write_bytes(b"avatar")
+    env.user.avatar_key = "avatars/avatar.png"
+    write_avatar(env, env.user.avatar_key, b"avatar")
 
     async with AsyncClient(
         transport=ASGITransport(app=avatar_app), base_url="http://test"
@@ -222,7 +234,7 @@ async def test_delete_avatar_http_clears_key_and_removes_file(avatar_env, avatar
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["avatar_key"] is None
     assert env.user.avatar_key is None
-    assert not (env.root / "avatar.png").exists()
+    assert not (env.root / "avatars/avatar.png").exists()
     env.db.commit.assert_awaited_once()
 
 
@@ -286,7 +298,7 @@ async def test_http_invalid_upload_has_no_side_effects(
     assert response.status_code == expected_status
     assert response.json()["error"]["code"] == expected_code
     avatar_env.db.commit.assert_not_awaited()
-    assert list(avatar_env.root.iterdir()) == []
+    assert not any(path.is_file() for path in avatar_env.root.rglob("*"))
 
 
 @pytest.mark.asyncio
@@ -337,7 +349,7 @@ async def test_http_server_errors(avatar_env, avatar_app, monkeypatch, failure, 
         )
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert response.json()["error"]["code"] == code
-    assert list(avatar_env.root.iterdir()) == []
+    assert not any(path.is_file() for path in avatar_env.root.rglob("*"))
 
 
 @pytest.mark.asyncio
@@ -354,7 +366,7 @@ async def test_concurrent_replacements_leave_no_orphans(  # noqa: PLR0915
     keys = []
     tasks = []
     real_save = env.storage.save
-    (env.root / "old.png").write_bytes(b"old")
+    write_avatar(env, "avatars/old.png", b"old")
 
     async def save(*args, **kwargs):
         key = await real_save(*args, **kwargs)
@@ -374,7 +386,7 @@ async def test_concurrent_replacements_leave_no_orphans(  # noqa: PLR0915
                     id=user_id,
                     email=f"avatar-concurrency-{user_id.hex}@example.com",
                     role_id=role_id,
-                    avatar_key="old.png",
+                    avatar_key="avatars/old.png",
                 )
             )
             await seed.commit()
@@ -382,7 +394,7 @@ async def test_concurrent_replacements_leave_no_orphans(  # noqa: PLR0915
         async with factory() as first, factory() as second:
             # Model authentication preloading the user before the avatar service.
             stale_user = await second.get(User, user_id)
-            assert stale_user.avatar_key == "old.png"
+            assert stale_user.avatar_key == "avatars/old.png"
             first_pid = await first.scalar(text("SELECT pg_backend_pid()"))
             second_pid = await second.scalar(text("SELECT pg_backend_pid()"))
             assert first_pid != second_pid
@@ -426,7 +438,12 @@ async def test_concurrent_replacements_leave_no_orphans(  # noqa: PLR0915
         async with factory() as verify:
             current = await verify.get(User, user_id)
             assert current.avatar_key == keys[-1]
-            assert set(path.name for path in env.root.iterdir()) == {current.avatar_key}
+            stored_keys = {
+                path.relative_to(env.root).as_posix()
+                for path in env.root.rglob("*")
+                if path.is_file()
+            }
+            assert stored_keys == {current.avatar_key}
             assert (env.root / current.avatar_key).read_bytes() == image_bytes()
         assert len(keys) == len(tasks)
         assert keys[0] != keys[1]
@@ -442,8 +459,8 @@ async def test_http_limits_preserve_existing_avatar(
     avatar_env, avatar_app, monkeypatch, limit_type
 ):
     env = avatar_env
-    env.user.avatar_key = "old.png"
-    (env.root / "old.png").write_bytes(b"old")
+    env.user.avatar_key = "avatars/old.png"
+    write_avatar(env, env.user.avatar_key, b"old")
     field = (
         "max_user_avatar_bytes" if limit_type == "bytes" else "max_user_avatar_pixels"
     )
@@ -457,8 +474,8 @@ async def test_http_limits_preserve_existing_avatar(
         )
     assert response.status_code == status.HTTP_413_CONTENT_TOO_LARGE
     assert response.json()["error"]["code"] == "file_size_exceeded"
-    assert env.user.avatar_key == "old.png"
-    assert list(env.root.iterdir()) == [env.root / "old.png"]
+    assert env.user.avatar_key == "avatars/old.png"
+    assert list(env.avatar_dir.iterdir()) == [env.root / "avatars/old.png"]
     env.db.commit.assert_not_awaited()
 
 
@@ -473,7 +490,7 @@ async def test_http_invalid_filename(avatar_env, avatar_app):
         )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()["error"]["code"] == "file_invalid_filename"
-    assert list(avatar_env.root.iterdir()) == []
+    assert not any(path.is_file() for path in avatar_env.root.rglob("*"))
 
 
 @pytest.mark.asyncio

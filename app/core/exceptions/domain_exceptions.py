@@ -105,7 +105,7 @@ class FileEmptyError(DomainError):
     code = ErrorCode.EMPTY_FILE
 
 
-class FileInvalidFilenameError(DomainError):
+class StorageInvalidFilenameError(DomainError):
     code = ErrorCode.FILE_INVALID_FILENAME
 
 
@@ -119,3 +119,11 @@ class FileDeleteError(DomainError):
 
 class StorageBackendNotSupportedError(DomainError):
     code = ErrorCode.STORAGE_BACKEND_NOT_SUPPORTED
+
+
+class StorageInvalidSubfolderFormatError(DomainError):
+    code = ErrorCode.STORAGE_INVALID_SUBFOLDER_FORMAT
+
+
+class StorageInvalidFilePathError(DomainError):
+    code = ErrorCode.STORAGE_INVALID_FILE_PATH

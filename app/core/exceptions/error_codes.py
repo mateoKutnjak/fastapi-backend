@@ -49,6 +49,8 @@ class ErrorCode(StrEnum):
     DATABASE_ERROR = "database_error"
     STORAGE_BACKEND_NOT_SUPPORTED = "storage_backend_not_supported"
     STORAGE_FILE_NOT_FOUND = "storage_file_not_found"
+    STORAGE_INVALID_SUBFOLDER_FORMAT = "storage_invalid_subfolder_format"
+    STORAGE_INVALID_FILE_PATH = "storage_invalid_file_path"
 
 
 class ErrorDetail(StrEnum):

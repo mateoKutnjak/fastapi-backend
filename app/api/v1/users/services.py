@@ -57,7 +57,7 @@ async def delete_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> None:
             await storage.delete(avatar_key)
         except Exception as e:
             logging.exception(
-                "Failed to delete new avatar after database failure", exc_info=e
+                "Failed to delete avatar after database failure", exc_info=e
             )
 
 
@@ -108,6 +108,7 @@ async def update_user_avatar(
         file.filename,
         image_info.data,
         extension=image_info.extension,
+        subfolder="avatars",
     )
 
     try:
