@@ -5,8 +5,12 @@ from fastapi import APIRouter, Depends, File, Path, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth.authentication import UserContext
-from app.api.v1.auth.dependencies import get_current_user_context, require_permission
+from app.api.v1.auth.dependencies import (
+    get_current_user_context,
+    require_current_user_permission,
+)
 from app.api.v1.users import services
+from app.api.v1.users.constants import PermissionEnum
 from app.api.v1.users.schemas import UserResponsePrivate
 from app.core.db import get_db
 
@@ -23,7 +27,9 @@ async def get_me(
 @router.get("/{user_id}", response_model=UserResponsePrivate)
 async def get_user(
     user_id: Annotated[uuid.UUID, Path()],
-    user_context: Annotated[UserContext, Depends(require_permission("users:read"))],
+    user_context: Annotated[
+        UserContext, Depends(require_current_user_permission(PermissionEnum.USERS_READ))
+    ],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     return await services.get_user_by_id(db, user_id)
@@ -31,7 +37,9 @@ async def get_user(
 
 @router.get("/", response_model=list[UserResponsePrivate])
 async def get_all_users(
-    user_context: Annotated[UserContext, Depends(require_permission("users:list"))],
+    user_context: Annotated[
+        UserContext, Depends(require_current_user_permission(PermissionEnum.USERS_LIST))
+    ],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     return await services.get_all_users(db)
@@ -50,7 +58,10 @@ async def delete_me(
 )
 async def delete_user(
     user_id: Annotated[uuid.UUID, Path()],
-    user_context: Annotated[UserContext, Depends(require_permission("users:delete"))],
+    user_context: Annotated[
+        UserContext,
+        Depends(require_current_user_permission(PermissionEnum.USERS_DELETE)),
+    ],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
 ):
     await services.delete_user_by_id(db, user_id)

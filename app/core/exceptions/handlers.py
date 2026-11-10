@@ -13,6 +13,7 @@ from app.core.exceptions.domain_exceptions import (
     DomainError,
     ExpiredPasswordResetTokenError,
     ExpiredVerificationTokenError,
+    FCMTokenUpdateForbiddenError,
     FileDeleteError,
     FileEmptyError,
     FileSaveError,
@@ -72,6 +73,7 @@ DOMAIN_HTTP_MAPPINGS: dict[type[DomainError], type[AppException]] = {
     StorageBackendNotSupportedError: InternalErrorException,
     StorageInvalidSubfolderFormatError: InternalErrorException,
     StorageInvalidFilePathError: InternalErrorException,
+    FCMTokenUpdateForbiddenError: ForbiddenException,
 }
 
 

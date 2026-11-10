@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.api.v1.auth.authentication import UserContext, authenticate_access_token
 from app.api.v1.auth.schemas import SessionMetadata
+from app.api.v1.users.constants import PermissionEnum
 from app.core.db import AsyncSession, get_db
 from app.core.exceptions.domain_exceptions import (
     AuthenticationFailedError,
@@ -14,32 +15,41 @@ from app.core.exceptions.domain_exceptions import (
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 
-async def get_current_user_context(
+async def get_optional_user_context(
     token: Annotated[str | None, Depends(oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db, scope="function")],
-) -> UserContext:
+) -> UserContext | None:
     # * Override the default behavior of OAuth2PasswordBearer to not raise an exception
     # * if no token is provided. Without this line the 401 exception would be raised
     # * with {"details": "Not authenticated"}.
 
     if token is None:
-        raise AuthenticationFailedError()
+        return None
 
     return await authenticate_access_token(db, token)
 
 
-def require_permission(permission: str):
+async def get_current_user_context(
+    user_context: Annotated[
+        UserContext | None,
+        Depends(get_optional_user_context),
+    ],
+) -> UserContext:
+    if user_context is None:
+        raise AuthenticationFailedError()
+
+    return user_context
+
+
+def require_current_user_permission(permission: PermissionEnum):
     async def permission_dependency(
         user_context: Annotated[UserContext, Depends(get_current_user_context)],
     ) -> UserContext:
-        permissions = [perm.name for perm in user_context.user.role.permissions]
-
-        if permission not in permissions:
+        if permission not in {p.name for p in user_context.user.role.permissions}:
             raise PermissionDeniedError()
         return user_context
 
     return permission_dependency
-
 
 def get_session_metadata(
     request: Request,

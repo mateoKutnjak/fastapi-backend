@@ -41,6 +41,8 @@ class ErrorCode(StrEnum):
     FILE_SAVE_ERROR = "file_save_error"
     FILE_DELETE_ERROR = "file_delete_error"
     FILE_INVALID_FILENAME = "file_invalid_filename"
+    FID_NOT_PROVIDED = "fid_not_provided"
+    FCM_TOKEN_UPDATE_FORBIDDEN = "fcm_token_update_forbidden"  # noqa: S105
 
     # Conflict-level codes
     USERNAME_ALREADY_EXISTS = "username_already_exists"

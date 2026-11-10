@@ -153,7 +153,7 @@ async def delete_user_avatar(db: AsyncSession, user_id: uuid.UUID) -> User:
 
     try:
         await db.commit()
-    except Exception as e:
+    except Exception:
         try:
             await db.rollback()
         except Exception as e:
@@ -161,7 +161,7 @@ async def delete_user_avatar(db: AsyncSession, user_id: uuid.UUID) -> User:
                 "Failed to rollback after avatar delete failure",
                 exc_info=e,
             )
-        raise e
+        raise
 
     if avatar_key:
         try:

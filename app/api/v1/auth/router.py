@@ -5,7 +5,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.v1.auth import services
 from app.api.v1.auth.authentication import UserContext
-from app.api.v1.auth.dependencies import get_current_user_context, get_session_metadata
+from app.api.v1.auth.dependencies import (
+    get_current_user_context,
+    get_session_metadata,
+)
 from app.api.v1.auth.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,

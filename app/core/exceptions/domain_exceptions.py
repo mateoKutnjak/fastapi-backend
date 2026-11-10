@@ -127,3 +127,10 @@ class StorageInvalidSubfolderFormatError(DomainError):
 
 class StorageInvalidFilePathError(DomainError):
     code = ErrorCode.STORAGE_INVALID_FILE_PATH
+
+
+class FidNotProvidedError(DomainError):
+    code = ErrorCode.FID_NOT_PROVIDED
+
+class FCMTokenUpdateForbiddenError(DomainError):
+    code = ErrorCode.FCM_TOKEN_UPDATE_FORBIDDEN
